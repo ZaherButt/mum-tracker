@@ -61,10 +61,8 @@
   button.action.faint:active{background:linear-gradient(135deg,#e11d48,#be123c)}
   button.action.nearfaint{background:linear-gradient(135deg,#fb923c,#ea580c);grid-column:1/-1;text-align:center;
     padding:18px;box-shadow:0 6px 20px rgba(234,88,12,.3)}
-  button.action.water{background:linear-gradient(135deg,#7dd3fc,#0ea5e9);color:#0c1f33}
-  button.action.water small{color:rgba(12,31,51,.7)}
-  button.action.bm{background:linear-gradient(135deg,#c4b5fd,#a78bfa);color:#1e1233}
-  button.action.bm small{color:rgba(30,18,51,.7)}
+  button.action.water,button.action.bm{background:var(--card);color:var(--txt)}
+  button.action.water small,button.action.bm small{color:var(--muted)}
   .slider-row{background:var(--card);padding:20px;border-radius:var(--radius);margin-bottom:10px;box-shadow:var(--shadow)}
   .slider-row label{display:flex;justify-content:space-between;font-weight:600;margin-bottom:14px;font-size:15px;align-items:baseline}
   .slider-row .val{font-size:32px;color:var(--accent);font-weight:700;font-variant-numeric:tabular-nums}
