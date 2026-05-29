@@ -303,8 +303,15 @@ const COLS = ['timestamp','event_type','drug_name','dose','route','pain_score_0_
               'bp_systolic','bp_diastolic','heart_rate','symptoms','bowel_movement',
               'water_ml','notes','logged_by'];
 
+// ntfy.sh push notifications for FAINT / near-faint only.
+// Topic is unguessable; share it only with family who installed the ntfy app.
+const NTFY_TOPIC = 'mum-tracker-shamim-Kx9pQwN7aBzT3vRm';
+const NTFY_ALERT_TYPES = new Set(['faint','near_faint']);
+
 let entries = [];   // [{key, ...row}]
 let myName = localStorage.getItem('mum_who') || '';
+let firstLoad = true;          // suppress chime/notify on initial sync
+let knownKeys = new Set();     // track which entry keys we've already seen
 
 /* ============ PIN GATE ============ */
 async function sha256(s){
@@ -425,11 +432,96 @@ function startListening(){
   setSync('sync');
   onValue(ref(db,'entries'), (snap)=>{
     const v = snap.val() || {};
-    entries = Object.keys(v).map(k=>({key:k, ...v[k]}));
-    entries.sort((a,b)=>(a.timestamp||'').localeCompare(b.timestamp||''));
+    const newRows = Object.keys(v).map(k=>({key:k, ...v[k]}));
+    newRows.sort((a,b)=>(a.timestamp||'').localeCompare(b.timestamp||''));
+
+    // Detect entries that are new since this tab loaded (i.e. added by others or by us on another device)
+    if(!firstLoad){
+      newRows.forEach(r=>{
+        if(!knownKeys.has(r.key)){
+          handleNewEntry(r);
+        }
+      });
+    }
+    knownKeys = new Set(newRows.map(r=>r.key));
+    firstLoad = false;
+
+    entries = newRows;
     setSync('on');
     render();
   }, (err)=>{ setSync('off'); console.error(err); });
+}
+
+/* ============ NEW-ENTRY NOTIFICATIONS ============ */
+let chimeCtx = null;
+function chime(){
+  try{
+    if(!chimeCtx) chimeCtx = new (window.AudioContext||window.webkitAudioContext)();
+    const o = chimeCtx.createOscillator();
+    const g = chimeCtx.createGain();
+    o.type='sine'; o.frequency.value=880;
+    g.gain.setValueAtTime(0, chimeCtx.currentTime);
+    g.gain.linearRampToValueAtTime(.12, chimeCtx.currentTime+.02);
+    g.gain.exponentialRampToValueAtTime(.001, chimeCtx.currentTime+.5);
+    o.connect(g); g.connect(chimeCtx.destination);
+    o.start(); o.stop(chimeCtx.currentTime+.5);
+  } catch(e){ /* silent */ }
+}
+let titleFlashTimer;
+const originalTitle = document.title;
+function flashTitle(msg){
+  clearInterval(titleFlashTimer);
+  let on = false;
+  titleFlashTimer = setInterval(()=>{
+    document.title = on ? originalTitle : msg;
+    on = !on;
+  }, 1000);
+  // Stop flashing when tab regains focus
+  const stop = ()=>{ clearInterval(titleFlashTimer); document.title = originalTitle;
+    window.removeEventListener('focus', stop); document.removeEventListener('visibilitychange', stop); };
+  window.addEventListener('focus', stop);
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) stop(); });
+}
+
+function handleNewEntry(r){
+  // Always chime + flash title when a NEW entry shows up from any source (so you know data arrived).
+  // Suppress if I logged it on this same device in the last few seconds (avoids self-chime).
+  const isMine = r.logged_by === myName;
+  const ageMs = Date.now() - new Date(r.timestamp.replace(' ','T')).getTime();
+  if(!isMine || ageMs > 60000){
+    chime();
+    if(document.hidden){
+      flashTitle('🔔 New entry');
+    }
+  }
+  // Push to ntfy ONLY for critical events. Anyone subscribed to the topic gets it.
+  if(NTFY_ALERT_TYPES.has(r.event_type) && !isMine){
+    sendNtfy(r);
+  }
+}
+
+async function sendNtfy(r){
+  const isFaint = r.event_type === 'faint';
+  const title = isFaint ? '🚨 FAINT — Shamim Butt' : '⚠️ Near-faint — Shamim Butt';
+  const bits = [];
+  if(r.pain_score_0_10) bits.push(`Pain ${r.pain_score_0_10}/10`);
+  if(r.position) bits.push(r.position.replace(/_/g,' '));
+  if(r.symptoms) bits.push(r.symptoms);
+  if(r.notes) bits.push(r.notes);
+  if(r.logged_by) bits.push(`— logged by ${r.logged_by}`);
+  const body = bits.join(' · ') || 'New event logged in tracker';
+  try{
+    await fetch('https://ntfy.sh/' + NTFY_TOPIC, {
+      method:'POST',
+      headers: {
+        'Title': title,
+        'Priority': isFaint ? 'urgent' : 'high',
+        'Tags': isFaint ? 'rotating_light,red_circle' : 'warning',
+        'Click': location.origin + location.pathname
+      },
+      body
+    });
+  } catch(e){ console.error('ntfy push failed', e); }
 }
 
 /* ============ ENTRY API ============ */
