@@ -134,8 +134,29 @@
     border-radius:var(--radius-sm);padding:12px;font-family:ui-monospace,Menlo,monospace;font-size:11px;resize:vertical}
   .hint{font-size:12.5px;color:var(--muted);line-height:1.6;margin:10px 4px;padding:0 4px}
   .hint code{background:var(--card);padding:2px 6px;border-radius:4px;font-size:11px;color:var(--accent)}
+  /* Insights */
   .pill{display:inline-block;padding:3px 9px;background:var(--card2);border-radius:999px;font-size:10.5px;
     color:var(--muted);margin-left:6px;font-weight:500}
+  .insights{display:grid;gap:10px;margin-bottom:20px}
+  .insight-card{background:var(--card);padding:16px;border-radius:var(--radius);box-shadow:var(--shadow)}
+  .insight-card .ic-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+  .insight-card .ic-title{font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:.1em;font-weight:600}
+  .insight-card .ic-meta{font-size:11px;color:var(--muted)}
+  .insight-card .ic-big{font-size:26px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+  .insight-card .ic-sub{font-size:12px;color:var(--muted);margin-top:2px}
+  .spark{display:block;width:100%;height:60px;margin-top:6px}
+  .dose-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;
+    border-top:1px solid rgba(255,255,255,.05);font-size:13.5px}
+  .dose-row:first-child{border-top:0;padding-top:0}
+  .dose-row .name{font-weight:500}
+  .dose-row .ago{color:var(--muted);font-variant-numeric:tabular-nums;font-size:12.5px}
+  .dose-row .ago.warn{color:var(--warn)} .dose-row .ago.bad{color:var(--bad)}
+  .timeline-strip{position:relative;height:36px;background:rgba(255,255,255,.04);border-radius:8px;margin-top:8px}
+  .timeline-strip .tick{position:absolute;top:0;bottom:0;width:2px;border-radius:2px;opacity:.85}
+  .timeline-strip .hr{position:absolute;bottom:-15px;font-size:9px;color:var(--muted);transform:translateX(-50%)}
+  .timeline-legend{display:flex;flex-wrap:wrap;gap:8px 14px;font-size:11px;color:var(--muted);margin-top:22px}
+  .timeline-legend span{display:inline-flex;align-items:center;gap:4px}
+  .timeline-legend i{display:inline-block;width:8px;height:8px;border-radius:2px}
   /* PIN gate */
   .gate{position:fixed;inset:0;background:var(--bg);
     background-image:radial-gradient(ellipse at top,#2a2240 0%,#1a1625 60%);
@@ -235,6 +256,7 @@
 
   <!-- VIEW TAB -->
   <section id="tab-view" class="section">
+    <div class="insights" id="insights"></div>
     <h2>Recent entries (newest first)</h2>
     <div class="entries" id="entriesList"></div>
   </section>
@@ -678,7 +700,145 @@ function render(){
     }).join('');
   }
   renderStats();
+  renderInsights();
   document.getElementById('dumpBox').value = toCSV(entries);
+}
+
+/* ============ INSIGHTS ============ */
+function renderInsights(){
+  const box = document.getElementById('insights');
+  if(!entries.length){ box.innerHTML = ''; return; }
+  const now = new Date();
+  const hoursAgo = ms => Math.round((now - new Date(ms))/3600000);
+  const minsAgo = ms => Math.round((now - new Date(ms))/60000);
+
+  // 1) Pain trend — last 7 days
+  const painPoints = entries
+    .filter(r=>r.event_type==='pain_check' && r.pain_score_0_10!=='' && r.pain_score_0_10!=null)
+    .map(r=>({t:new Date(r.timestamp.replace(' ','T')), v:+r.pain_score_0_10}))
+    .filter(p=>!isNaN(p.t) && !isNaN(p.v) && (now - p.t) < 7*86400000)
+    .sort((a,b)=>a.t-b.t);
+  const painCard = painPoints.length ? (() => {
+    const vals = painPoints.map(p=>p.v);
+    const avg = (vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1);
+    const max = Math.max(...vals);
+    const latest = vals[vals.length-1];
+    const trend = vals.length>=2 ? (vals[vals.length-1] - vals[0]).toFixed(1) : 0;
+    const arrow = trend > 0.5 ? '↑' : trend < -0.5 ? '↓' : '→';
+    const trendCol = trend > 0.5 ? 'var(--bad)' : trend < -0.5 ? 'var(--good)' : 'var(--muted)';
+    // sparkline
+    const w = 280, h = 50, pad = 4;
+    const minT = painPoints[0].t.getTime(), maxT = painPoints[painPoints.length-1].t.getTime();
+    const span = Math.max(1, maxT - minT);
+    const pts = painPoints.map(p => {
+      const x = pad + ((p.t.getTime() - minT) / span) * (w - 2*pad);
+      const y = h - pad - (p.v / 10) * (h - 2*pad);
+      return [x,y];
+    });
+    const path = pts.map((p,i)=>`${i===0?'M':'L'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
+    const dots = pts.map(p=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="2.5" fill="var(--accent)" />`).join('');
+    return `<div class="insight-card">
+      <div class="ic-head"><div class="ic-title">📊 Pain · last ${painPoints.length} reading${painPoints.length>1?'s':''}</div>
+        <div class="ic-meta">${painPoints.length>1?'7d':'today'}</div></div>
+      <div style="display:flex;gap:18px;align-items:baseline">
+        <div><div class="ic-big">${latest}<small style="font-size:13px;color:var(--muted);font-weight:400">/10</small></div>
+          <div class="ic-sub">latest</div></div>
+        <div><div class="ic-big">${avg}</div><div class="ic-sub">avg</div></div>
+        <div><div class="ic-big">${max}</div><div class="ic-sub">peak</div></div>
+        <div><div class="ic-big" style="color:${trendCol}">${arrow}</div><div class="ic-sub">trend</div></div>
+      </div>
+      <svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+        <line x1="0" y1="${h-pad}" x2="${w}" y2="${h-pad}" stroke="rgba(255,255,255,.06)" />
+        <line x1="0" y1="${h/2}" x2="${w}" y2="${h/2}" stroke="rgba(255,255,255,.04)" stroke-dasharray="2,2" />
+        <path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+        ${dots}
+      </svg>
+    </div>`;
+  })() : '';
+
+  // 2) Time since last dose (per drug, last 24h relevance)
+  const drugs = {};
+  entries.filter(r=>r.event_type==='dose' && r.drug_name).forEach(r=>{
+    const k = r.drug_name;
+    const t = new Date(r.timestamp.replace(' ','T'));
+    if(!drugs[k] || t > drugs[k]) drugs[k] = t;
+  });
+  const drugRows = Object.entries(drugs)
+    .sort((a,b)=>b[1]-a[1])
+    .map(([name,t])=>{
+      const mins = minsAgo(t);
+      const ago = mins < 60 ? `${mins}m ago` : mins < 1440 ? `${(mins/60).toFixed(1)}h ago` : `${Math.round(mins/1440)}d ago`;
+      const cls = mins < 60 ? '' : mins < 480 ? '' : mins < 1440 ? 'warn' : 'bad';
+      return `<div class="dose-row"><span class="name">💊 ${name}</span><span class="ago ${cls}">${ago}</span></div>`;
+    }).join('');
+  const dosesCard = drugRows ? `<div class="insight-card">
+    <div class="ic-head"><div class="ic-title">⏱ Time since last dose</div></div>
+    ${drugRows}
+  </div>` : '';
+
+  // 3) Faint correlation — for each faint/near-faint, find pain & last dose in prior 2h
+  const faints = entries.filter(r=>r.event_type==='faint'||r.event_type==='near_faint')
+    .sort((a,b)=>new Date(b.timestamp.replace(' ','T')) - new Date(a.timestamp.replace(' ','T')));
+  let faintCard = '';
+  if(faints.length){
+    const f = faints[0];
+    const ft = new Date(f.timestamp.replace(' ','T'));
+    const within2h = entries.filter(r=>{
+      const t = new Date(r.timestamp.replace(' ','T'));
+      return t < ft && (ft - t) < 2*3600000;
+    });
+    const recentDoses = within2h.filter(r=>r.event_type==='dose');
+    const recentPain = within2h.filter(r=>r.event_type==='pain_check' && r.pain_score_0_10);
+    const recentMeal = within2h.find(r=>r.event_type==='meal');
+    const dosesTxt = recentDoses.length ? recentDoses.map(d=>`${d.drug_name} (${Math.round((ft-new Date(d.timestamp.replace(' ','T')))/60000)}m before)`).join(', ') : '—';
+    const painTxt = recentPain.length ? `${recentPain[recentPain.length-1].pain_score_0_10}/10` : '—';
+    const mealTxt = recentMeal ? `${Math.round((ft - new Date(recentMeal.timestamp.replace(' ','T')))/60000)}m before` : '—';
+    faintCard = `<div class="insight-card" style="border-left:3px solid var(--bad)">
+      <div class="ic-head"><div class="ic-title">🚨 Last ${f.event_type.replace('_',' ')} · ${hoursAgo(ft)}h ago</div>
+        <div class="ic-meta">${f.timestamp.slice(5)}</div></div>
+      <div style="font-size:13px;line-height:1.7;margin-top:6px">
+        <div>Pain at time: <b>${f.pain_score_0_10||'not logged'}/10</b></div>
+        <div>Recent pain (2h before): <b>${painTxt}</b></div>
+        <div>Doses in prior 2h: <b>${dosesTxt}</b></div>
+        <div>Last meal: <b>${mealTxt}</b></div>
+        ${f.symptoms?`<div style="color:var(--muted);margin-top:4px">${f.symptoms}</div>`:''}
+      </div>
+    </div>`;
+  }
+
+  // 4) 24h timeline strip
+  const last24 = entries.filter(r=>{
+    const t = new Date(r.timestamp.replace(' ','T'));
+    return (now - t) < 24*3600000;
+  });
+  const colorFor = t => ({dose:'var(--accent2)',pain_check:'var(--accent)',meal:'var(--good)',
+    water:'#7dd3fc',bowel_movement:'#c4b5fd',faint:'var(--bad)',near_faint:'var(--warn)',
+    sleep:'#94a3b8'})[t] || 'var(--muted)';
+  const ticks = last24.map(r=>{
+    const t = new Date(r.timestamp.replace(' ','T'));
+    const pct = 100 - ((now - t) / (24*3600000)) * 100;
+    return `<div class="tick" style="left:${pct.toFixed(2)}%;background:${colorFor(r.event_type)}" title="${r.timestamp} ${r.event_type}"></div>`;
+  }).join('');
+  // hour markers every 6 hours
+  const hourMarkers = [0,6,12,18,24].map(h=>{
+    const pct = (h/24)*100;
+    const label = h===0?'24h ago':h===24?'now':`${24-h}h`;
+    return `<div class="hr" style="left:${pct}%">${label}</div>`;
+  }).join('');
+  const timelineCard = last24.length ? `<div class="insight-card">
+    <div class="ic-head"><div class="ic-title">🕒 Last 24 hours · ${last24.length} events</div></div>
+    <div class="timeline-strip">${ticks}${hourMarkers}</div>
+    <div class="timeline-legend">
+      <span style="color:var(--accent)"><i style="background:var(--accent)"></i></span>Pain
+      <span><i style="background:var(--accent2)"></i>Dose</span>
+      <span><i style="background:var(--good)"></i>Meal</span>
+      <span><i style="background:#7dd3fc"></i>Water</span>
+      <span><i style="background:#c4b5fd"></i>BM</span>
+      <span><i style="background:var(--bad)"></i>Faint</span>
+    </div>
+  </div>` : '';
+
+  box.innerHTML = faintCard + painCard + timelineCard + dosesCard;
 }
 /* ============ EDIT EXISTING ENTRY ============ */
 let editingKey = null;
