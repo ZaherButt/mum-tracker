@@ -618,13 +618,20 @@ window.openModal = (mode)=>{
   document.getElementById('modalBody').innerHTML = html;
   document.getElementById('modalBg').classList.add('open');
 };
-window.closeModal = ()=>{ document.getElementById('modalBg').classList.remove('open'); modalMode=null; };
+window.closeModal = ()=>{ document.getElementById('modalBg').classList.remove('open'); modalMode=null; editingKey=null; };
 function val(id){ const el=document.getElementById(id); return el?el.value:''; }
 function tsFromInput(id){
   const v = val(id); if(!v) return now();
   return v.replace('T',' ').slice(0,16);
 }
+window.delEntry = async (key)=>{
+  if(!confirm('Delete this entry?')) return;
+  setSync('sync');
+  await remove(ref(db,'entries/'+key));
+};
+
 window.saveModal = ()=>{
+  if(editingKey){ saveEdit(); return; }
   const m = modalMode;
   const ts = tsFromInput('m_time');
   let entry = { event_type:m, timestamp:ts, notes:val('m_notes') };
@@ -664,7 +671,8 @@ function render(){
     list.innerHTML = entries.slice().reverse().map(r=>{
       const who = r.logged_by ? `· ${r.logged_by}` : '';
       return `<div class="entry ${r.event_type}">
-        <div class="what"><div class="when">${r.timestamp} <span class="who">${who}</span></div>${describe(r)}</div>
+        <div class="what" onclick="openEdit('${r.key}')" style="cursor:pointer"><div class="when">${r.timestamp} <span class="who">${who}</span></div>${describe(r)}</div>
+        <button class="del" onclick="openEdit('${r.key}')" title="Edit">✎</button>
         <button class="del" onclick="delEntry('${r.key}')" title="Delete">✕</button>
       </div>`;
     }).join('');
@@ -672,11 +680,74 @@ function render(){
   renderStats();
   document.getElementById('dumpBox').value = toCSV(entries);
 }
-window.delEntry = async (key)=>{
-  if(!confirm('Delete this entry?')) return;
-  setSync('sync');
-  await remove(ref(db,'entries/'+key));
+/* ============ EDIT EXISTING ENTRY ============ */
+let editingKey = null;
+window.openEdit = (key)=>{
+  const r = entries.find(e=>e.key===key);
+  if(!r) return;
+  editingKey = key;
+  const t = r.event_type;
+  document.getElementById('modalTitle').textContent = '✎ Edit ' + t.replace(/_/g,' ');
+  // datetime-local needs "YYYY-MM-DDTHH:MM"
+  const dt = (r.timestamp||'').replace(' ','T').slice(0,16);
+  let html = `<label>Time</label><input type="datetime-local" id="m_time" value="${dt}" />`;
+  if(t==='pain_check'){
+    html += `<label>Pain (0–10)</label><input type="number" min="0" max="10" id="m_pain" value="${r.pain_score_0_10||''}" />`;
+  } else if(t==='dose'){
+    html += `<label>Drug</label><input type="text" id="m_drug" value="${escAttr(r.drug_name)}" />
+      <div class="row"><div><label>Dose</label><input type="text" id="m_dose" value="${escAttr(r.dose)}" /></div>
+        <div><label>Route</label><select id="m_route">
+          ${['oral','rectal','topical','sublingual','injection','ocular'].map(x=>`<option ${r.route===x?'selected':''}>${x}</option>`).join('')}
+        </select></div></div>`;
+  } else if(t==='water'){
+    html += `<label>Water (ml)</label><input type="number" id="m_water" value="${r.water_ml||''}" />`;
+  } else if(t==='bowel_movement'){
+    html += `<label>How was it?</label><select id="m_bm">
+      <option value="yes_easy" ${r.bowel_movement==='yes_easy'?'selected':''}>Easy — no straining</option>
+      <option value="yes_strained" ${r.bowel_movement==='yes_strained'?'selected':''}>With straining</option>
+      <option value="no" ${r.bowel_movement==='no'?'selected':''}>Tried but no result</option>
+    </select>`;
+  } else if(t==='faint'||t==='near_faint'){
+    html += `<label>Pain (0–10)</label><input type="number" min="0" max="10" id="m_pain" value="${r.pain_score_0_10||''}" />
+      <label>Position</label><select id="m_pos">
+        <option value="">—</option>
+        ${['flat','reclined','sitting_upright','feet_dangling','standing'].map(x=>`<option ${r.position===x?'selected':''}>${x}</option>`).join('')}
+      </select>
+      <label>Symptoms</label><input type="text" id="m_symp" value="${escAttr(r.symptoms)}" />`;
+  }
+  html += `<label>Notes</label><textarea id="m_notes">${escHtml(r.notes||'')}</textarea>`;
+  document.getElementById('modalBody').innerHTML = html;
+  document.getElementById('modalBg').classList.add('open');
 };
+
+function escAttr(v){ return (v||'').toString().replace(/"/g,'&quot;'); }
+function escHtml(v){ return (v||'').toString().replace(/[<>]/g, m=>m==='<'?'&lt;':'&gt;'); }
+
+async function saveEdit(){
+  const r = entries.find(e=>e.key===editingKey);
+  if(!r) return;
+  const t = r.event_type;
+  const updates = { timestamp: tsFromInput('m_time'), notes: val('m_notes') };
+  if(t==='pain_check'){ updates.pain_score_0_10 = val('m_pain'); }
+  else if(t==='dose'){ updates.drug_name = val('m_drug'); updates.dose = val('m_dose'); updates.route = val('m_route'); }
+  else if(t==='water'){ updates.water_ml = val('m_water'); }
+  else if(t==='bowel_movement'){ updates.bowel_movement = val('m_bm'); }
+  else if(t==='faint'||t==='near_faint'){
+    updates.pain_score_0_10 = val('m_pain'); updates.position = val('m_pos'); updates.symptoms = val('m_symp');
+  }
+  setSync('sync');
+  try{
+    // Merge: apply each updated field individually
+    const merged = { ...r, ...updates };
+    delete merged.key;
+    await set(ref(db,'entries/'+editingKey), merged);
+    toast('Updated');
+    editingKey = null;
+    closeModal();
+  } catch(e){
+    toast('⚠️ Update failed: ' + e.message); setSync('off');
+  }
+}
 function renderStats(){
   const today = new Date().toISOString().slice(0,10);
   const t = entries.filter(r=>(r.timestamp||'').startsWith(today));
