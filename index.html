@@ -451,9 +451,6 @@ window.openModal = (mode)=>{
   if(mode==='faint'){
     html = common + `
       <label>Pain at the moment (0–10)</label><input type="number" min="0" max="10" id="m_pain" />
-      <div class="row"><div><label>BP systolic</label><input type="number" id="m_bps" /></div>
-        <div><label>BP diastolic</label><input type="number" id="m_bpd" /></div></div>
-      <label>Heart rate</label><input type="number" id="m_hr" />
       <label>Symptoms</label><input type="text" id="m_symp" placeholder="dizzy, pale, sweaty, nausea" />
       <label>Notes — what happened</label><textarea id="m_notes"></textarea>`;
   } else if(mode==='near_faint'){
@@ -500,8 +497,7 @@ window.saveModal = ()=>{
   let entry = { event_type:m, timestamp:ts, notes:val('m_notes') };
   if(m==='faint'||m==='near_faint'){
     entry.pain_score_0_10 = val('m_pain'); entry.position = val('m_pos');
-    entry.bp_systolic = val('m_bps'); entry.bp_diastolic = val('m_bpd');
-    entry.heart_rate = val('m_hr'); entry.symptoms = val('m_symp');
+    entry.symptoms = val('m_symp');
   } else if(m==='dose'){
     entry.drug_name = val('m_drug'); entry.dose = val('m_dose'); entry.route = val('m_route');
   } else if(m==='bowel_movement'){ entry.bowel_movement = val('m_bm'); }
