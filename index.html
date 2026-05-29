@@ -89,10 +89,11 @@
   .stat .label{color:var(--muted);font-size:13px}
   .stat .v{font-size:20px;font-weight:700}
   .stat .v.good{color:var(--good)} .stat .v.warn{color:var(--warn)} .stat .v.bad{color:var(--bad)}
-  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--good);
-    color:#000;padding:12px 20px;border-radius:24px;font-weight:600;z-index:200;
-    box-shadow:0 4px 12px rgba(0,0,0,.4);display:none;max-width:90%;text-align:center}
-  .toast.show{display:block}
+  .toast{position:fixed;top:calc(60px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);
+    background:var(--good);color:#000;padding:12px 20px;border-radius:24px;font-weight:700;z-index:200;
+    box-shadow:0 4px 16px rgba(0,0,0,.5);display:none;max-width:90%;text-align:center;font-size:15px}
+  .toast.show{display:block;animation:toastIn .25s ease-out}
+  @keyframes toastIn{from{opacity:0;transform:translate(-50%,-12px)}to{opacity:1;transform:translate(-50%,0)}}
   .empty{text-align:center;color:var(--muted);padding:40px 20px;font-style:italic}
   textarea.dump{width:100%;height:200px;background:var(--bg);color:var(--txt);border:1px solid var(--card2);
     border-radius:8px;padding:10px;font-family:ui-monospace,Menlo,monospace;font-size:11px}
@@ -173,7 +174,7 @@
       <button class="action" onclick="quickDose('Gabapentin','300mg','oral')">💊 Gabapentin<small>300mg cap (TDS)</small></button>
       <button class="action" onclick="quickDose('Diazepam','2mg','oral')">💊 Diazepam<small>2mg tab (TDS)</small></button>
       <button class="action" onclick="quickDose('Co-dydramol','15/500mg','oral')">💊 Co-dydramol<small>15/500mg</small></button>
-      <button class="action" onclick="quickDose('Levothyroxine','50mcg','oral')">💊 Levothyroxine<small>50mcg</small></button>
+      <button class="action" onclick="quickDose('Eye drops','Monoprost + Trusopt','ocular')">👁 Eye drops<small>Monoprost + Trusopt (nightly)</small></button>
       <button class="action" onclick="openModal('dose')">＋ Other drug…</button>
     </div>
 
