@@ -355,12 +355,17 @@ window.googleSignIn = async ()=>{
   btn.disabled = true;
   try {
     await setPersistence(auth, browserLocalPersistence);
-    // Popup works on desktop; iOS Safari may block — fall back to redirect.
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    if(isIOS){
-      await signInWithRedirect(auth, provider);
-    } else {
+    // Use popup everywhere — iOS Safari redirect loops due to ITP blocking
+    // cross-origin auth storage between firebaseapp.com and github.io.
+    try {
       await signInWithPopup(auth, provider);
+    } catch(popupErr){
+      // Popup blocked (rare) → fall back to redirect.
+      if(popupErr.code === 'auth/popup-blocked' || popupErr.code === 'auth/operation-not-supported-in-this-environment'){
+        await signInWithRedirect(auth, provider);
+      } else {
+        throw popupErr;
+      }
     }
   } catch(e){
     btn.disabled = false;
