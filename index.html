@@ -218,7 +218,8 @@
     <button class="secondary" style="width:100%;margin-top:8px" onclick="copyDump()">📋 Copy all</button>
 
     <h2>Session</h2>
-    <button class="secondary" style="width:100%" onclick="logout()">🔒 Sign out (clear PIN on this device)</button>
+    <button class="secondary" style="width:100%" onclick="changePin()">🔑 Change family PIN</button>
+    <button class="secondary" style="width:100%;margin-top:8px" onclick="logout()">🔒 Sign out (clear PIN on this device)</button>
 
     <h2>Danger zone</h2>
     <button class="secondary" style="width:100%;background:#7f1d1d" onclick="clearAll()">🗑 Clear ALL entries (everyone)</button>
@@ -596,6 +597,20 @@ window.copyDump = ()=>{
 };
 window.logout = ()=>{
   sessionStorage.removeItem('mum_pin_ok'); location.reload();
+};
+window.changePin = async ()=>{
+  const cur = prompt('Enter CURRENT family PIN to confirm:');
+  if(!cur) return;
+  const snap = await get(ref(db,'meta/pinHash'));
+  const curHash = await sha256(cur);
+  if(curHash !== snap.val()){ alert('Wrong current PIN. No change made.'); return; }
+  const next = prompt('Enter NEW 4-digit PIN:');
+  if(!next || !/^\d{4}$/.test(next)){ alert('PIN must be exactly 4 digits.'); return; }
+  const confirm2 = prompt('Confirm the NEW PIN again:');
+  if(confirm2 !== next){ alert('PINs did not match. No change made.'); return; }
+  const newHash = await sha256(next);
+  await set(ref(db,'meta/pinHash'), newHash);
+  alert('PIN changed. Other family devices will be asked for the new PIN next time they open the app — tell them the new PIN out-of-band (WhatsApp/iMessage).');
 };
 window.clearAll = async ()=>{
   if(!confirm('Delete ALL entries for EVERYONE? Make sure you have a CSV backup first.')) return;
