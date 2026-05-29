@@ -222,7 +222,8 @@
     <button class="secondary" style="width:100%;margin-top:8px" onclick="logout()">🔒 Sign out (clear PIN on this device)</button>
 
     <h2>Danger zone</h2>
-    <button class="secondary" style="width:100%;background:#7f1d1d" onclick="clearAll()">🗑 Clear ALL entries (everyone)</button>
+    <p class="hint">The Clear All button is hidden by default. To reveal it, open the app with <code>?admin=1</code> at the end of the URL (e.g. bookmark <code>…/mum-tracker/?admin=1</code> on your device only).</p>
+    <button id="clearAllBtn" class="secondary" style="width:100%;background:#7f1d1d;display:none" onclick="clearAll()">🗑 Clear ALL entries (everyone)</button>
   </section>
 
 </main>
@@ -634,6 +635,12 @@ function toast(msg){
 }
 
 bootGate();
+
+// Show admin-only Clear All button when ?admin=1 is in URL
+if(new URLSearchParams(location.search).get('admin')==='1'){
+  const b = document.getElementById('clearAllBtn');
+  if(b) b.style.display = '';
+}
 </script>
 </body>
 </html>
