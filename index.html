@@ -157,46 +157,36 @@
   .timeline-legend{display:flex;flex-wrap:wrap;gap:8px 14px;font-size:11px;color:var(--muted);margin-top:22px}
   .timeline-legend span{display:inline-flex;align-items:center;gap:4px}
   .timeline-legend i{display:inline-block;width:8px;height:8px;border-radius:2px}
-  /* PIN gate */
+  /* Sign-in gate */
   .gate{position:fixed;inset:0;background:var(--bg);
     background-image:radial-gradient(ellipse at top,#2a2240 0%,#1a1625 60%);
     display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:1000;padding:24px}
-  .gate h1{font-size:24px;margin:0 0 8px;font-weight:600;letter-spacing:-.01em}
-  .gate p{color:var(--muted);text-align:center;margin:0 0 28px;max-width:300px;font-size:14px;line-height:1.5}
-  .pin-display{display:flex;gap:14px;margin-bottom:28px}
-  .pin-dot{width:14px;height:14px;border-radius:50%;border:1.5px solid var(--card2);background:transparent;transition:all .15s}
-  .pin-dot.filled{background:var(--accent);border-color:var(--accent);box-shadow:0 0 12px rgba(248,165,194,.5)}
-  .pin-dot.err{border-color:var(--bad);background:var(--bad)}
-  .keypad{display:grid;grid-template-columns:repeat(3,76px);gap:14px}
-  .keypad button{width:76px;height:76px;border-radius:50%;font-size:26px;font-weight:500;
-    background:var(--card);color:var(--txt);border:0;cursor:pointer;font-family:inherit;
-    box-shadow:var(--shadow);transition:all .1s}
-  .keypad button:active{background:var(--card2);transform:scale(.95)}
-  .keypad button.empty{visibility:hidden}
-  .gate .err{color:var(--bad);font-size:13px;margin-top:14px;min-height:18px;font-weight:500}
-  .gate .who-name{margin-top:20px;background:var(--card);padding:14px 18px;border-radius:var(--radius-sm);
-    border:0;color:var(--txt);font-size:15px;text-align:center;width:260px;font-family:inherit;
-    box-shadow:var(--shadow)}
-  .gate .who-name:focus{outline:none;box-shadow:0 0 0 2px var(--accent)}
+  .gate h1{font-size:24px;margin:0 0 8px;font-weight:600;letter-spacing:-.01em;text-align:center}
+  .gate p{color:var(--muted);text-align:center;margin:0 0 28px;max-width:320px;font-size:14px;line-height:1.5}
+  .gsi-btn{display:inline-flex;align-items:center;gap:12px;background:#fff;color:#1f1f1f;
+    border:0;border-radius:999px;padding:14px 24px;font-size:15px;font-weight:500;cursor:pointer;
+    font-family:inherit;box-shadow:var(--shadow-lg);transition:all .15s}
+  .gsi-btn:active{transform:scale(.97)}
+  .gsi-btn:disabled{opacity:.6;cursor:default}
+  .gsi-btn svg{width:20px;height:20px}
+  .gate .err{color:var(--bad);font-size:13px;margin-top:18px;min-height:18px;font-weight:500;text-align:center;max-width:320px}
+  .gate .gate-foot{margin-top:24px;font-size:11px;color:var(--muted);text-align:center;max-width:320px;line-height:1.5}
 </style>
 </head>
 <body>
 
-<!-- ============ PIN GATE ============ -->
+<!-- ============ SIGN-IN GATE ============ -->
 <div class="gate" id="gate">
   <h1 id="gateTitle">🌸 Shamim Butt's Health Tracker</h1>
   <p id="gateMsg">Loading…</p>
-  <div class="pin-display" id="pinDisplay">
-    <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
-  </div>
-  <div class="keypad" id="keypad" style="display:none">
-    <button onclick="pinPress('1')">1</button><button onclick="pinPress('2')">2</button><button onclick="pinPress('3')">3</button>
-    <button onclick="pinPress('4')">4</button><button onclick="pinPress('5')">5</button><button onclick="pinPress('6')">6</button>
-    <button onclick="pinPress('7')">7</button><button onclick="pinPress('8')">8</button><button onclick="pinPress('9')">9</button>
-    <button class="empty"></button><button onclick="pinPress('0')">0</button><button onclick="pinBack()">⌫</button>
-  </div>
+  <button class="gsi-btn" id="gsiBtn" style="display:none" onclick="googleSignIn()">
+    <svg viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20.4H24v7.2h11.3c-1.5 4.2-5.5 7.2-10.3 7.2-6 0-10.8-4.8-10.8-10.8S19 13.2 25 13.2c2.7 0 5.2 1 7.1 2.7l5.1-5.1C34 7.8 29.7 6 25 6 14.5 6 6 14.5 6 25s8.5 19 19 19 19-8.5 19-19c0-1.5-.2-3-.4-4.5z"/><path fill="#FF3D00" d="M8.3 14.7l5.9 4.3C15.7 15 19.9 12 25 12c2.7 0 5.2 1 7.1 2.7l5.1-5.1C34 7.8 29.7 6 25 6c-7 0-13 3.8-16.7 9.7z"/><path fill="#4CAF50" d="M25 44c4.7 0 9-1.8 12.2-4.7l-5.6-4.7c-1.8 1.3-4.1 2.1-6.6 2.1-4.8 0-8.8-3-10.3-7.2l-5.8 4.5C12 40.2 18 44 25 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20.4H24v7.2h11.3c-.7 2-2 3.7-3.7 4.9l5.6 4.7C39.7 35.4 44 30 44 24c0-1.2-.1-2.4-.4-3.5z"/></svg>
+    Sign in with Google
+  </button>
   <div class="err" id="gateErr"></div>
-  <input id="whoName" class="who-name" placeholder="Your name (e.g. Zaher)" style="display:none" />
+  <div class="gate-foot" id="gateFoot" style="display:none">
+    Only allowlisted family members can sign in.<br>Ask Zaher to add you.
+  </div>
 </div>
 
 <header style="display:none" id="appHeader">
@@ -280,8 +270,8 @@
     <button class="secondary" style="width:100%;margin-top:8px" onclick="copyDump()">📋 Copy all</button>
 
     <h2>Session</h2>
-    <button class="secondary" style="width:100%" onclick="changePin()">🔑 Change family PIN</button>
-    <button class="secondary" style="width:100%;margin-top:8px" onclick="logout()">🔒 Sign out (clear PIN on this device)</button>
+    <p class="hint">Access is controlled by Google Sign-In. Only allowlisted family Google accounts can read or write the database.</p>
+    <button class="secondary" style="width:100%" onclick="logout()">🔒 Sign out of Google</button>
 
     <h2>Danger zone</h2>
     <p class="hint">The Clear All button is hidden by default. To reveal it, open the app with <code>?admin=1</code> at the end of the URL (e.g. bookmark <code>…/mum-tracker/?admin=1</code> on your device only).</p>
@@ -307,6 +297,10 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
 import { getDatabase, ref, push, set, remove, onValue, get, child }
   from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect,
+         getRedirectResult, onAuthStateChanged, signOut, browserLocalPersistence,
+         setPersistence }
+  from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCn3hqN7WuF8tLhnV8h7sePgua97Ht2aRg",
@@ -319,6 +313,15 @@ const firebaseConfig = {
 };
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
+const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
+
+// Allowlisted family Google accounts. Add more here AND in Firebase rules.
+const ALLOWED_EMAILS = new Set([
+  'zaher.butt@gmail.com',
+  'rezab786@gmail.com',
+  'bashirbutt2003@gmail.com'
+]);
 
 const COLS = ['timestamp','event_type','drug_name','dose','route','pain_score_0_10',
               'position','minutes_since_last_meal','minutes_since_last_dose_any',
@@ -331,112 +334,83 @@ const NTFY_TOPIC = 'mum-tracker-shamim-Kx9pQwN7aBzT3vRm';
 const NTFY_ALERT_TYPES = new Set(['faint','near_faint']);
 
 let entries = [];   // [{key, ...row}]
-let myName = localStorage.getItem('mum_who') || '';
+let myName = '';            // resolved from Google profile
+let myEmail = '';           // resolved from Google profile
 let firstLoad = true;          // suppress chime/notify on initial sync
 let knownKeys = new Set();     // track which entry keys we've already seen
+let appStarted = false;        // guard against double-init from onAuthStateChanged
 
-/* ============ PIN GATE ============ */
-async function sha256(s){
-  const buf = new TextEncoder().encode(s);
-  const hash = await crypto.subtle.digest('SHA-256', buf);
-  return Array.from(new Uint8Array(hash)).map(b=>b.toString(16).padStart(2,'0')).join('');
-}
-let pinBuf = '';
-let pinMode = 'check'; // 'set' | 'check'
-let pinNew = '';
-
-window.pinPress = (d)=>{
-  if(pinBuf.length>=4) return;
-  pinBuf += d;
-  updatePinDots();
-  if(pinBuf.length===4) submitPin();
-};
-window.pinBack = ()=>{ pinBuf = pinBuf.slice(0,-1); updatePinDots(true); };
-function updatePinDots(clearErr){
-  document.querySelectorAll('#pinDisplay .pin-dot').forEach((d,i)=>{
-    d.classList.remove('err');
-    d.classList.toggle('filled', i<pinBuf.length);
-  });
-  if(clearErr) document.getElementById('gateErr').textContent='';
-}
-function pinErr(msg){
-  document.getElementById('gateErr').textContent = msg;
-  document.querySelectorAll('#pinDisplay .pin-dot').forEach(d=>d.classList.add('err'));
-  pinBuf = '';
-  setTimeout(()=>updatePinDots(),600);
+/* ============ GOOGLE SIGN-IN GATE ============ */
+function gateMsg(t){ document.getElementById('gateMsg').textContent = t; }
+function gateErr(t){ document.getElementById('gateErr').textContent = t || ''; }
+function showSignInBtn(show){
+  document.getElementById('gsiBtn').style.display = show ? '' : 'none';
+  document.getElementById('gateFoot').style.display = show ? '' : 'none';
 }
 
-async function submitPin(){
-  const snap = await get(ref(db,'meta/pinHash'));
-  if(pinMode==='set'){
-    if(!pinNew){
-      pinNew = pinBuf; pinBuf='';
-      document.getElementById('gateMsg').textContent = 'Confirm the same PIN again.';
-      updatePinDots();
+window.googleSignIn = async ()=>{
+  gateErr('');
+  const btn = document.getElementById('gsiBtn');
+  btn.disabled = true;
+  try {
+    await setPersistence(auth, browserLocalPersistence);
+    // Popup works on desktop; iOS Safari may block — fall back to redirect.
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    if(isIOS){
+      await signInWithRedirect(auth, provider);
     } else {
-      if(pinNew !== pinBuf){ pinErr('PINs do not match — try again'); pinNew=''; document.getElementById('gateMsg').textContent='Set a 4-digit family PIN.'; return; }
-      const h = await sha256(pinNew);
-      await set(ref(db,'meta/pinHash'), h);
-      sessionStorage.setItem('mum_pin_ok','1');
-      pinNew='';
-      askForName();
+      await signInWithPopup(auth, provider);
     }
-  } else {
-    const h = await sha256(pinBuf);
-    if(h === snap.val()){ sessionStorage.setItem('mum_pin_ok','1'); askForName(); }
-    else { pinErr('Wrong PIN'); }
+  } catch(e){
+    btn.disabled = false;
+    gateErr('Sign-in failed: ' + (e.message || e.code || 'unknown'));
   }
-}
+};
 
-function askForName(){
-  if(myName){ enterApp(); return; }
-  document.getElementById('gateTitle').textContent = '👋 Welcome';
-  document.getElementById('gateMsg').textContent = 'What\'s your name? (so we know who logged what)';
-  document.getElementById('keypad').style.display = 'none';
-  document.getElementById('pinDisplay').style.display = 'none';
-  const inp = document.getElementById('whoName');
-  inp.style.display = 'block'; inp.focus();
-  inp.onkeydown = (e)=>{
-    if(e.key==='Enter' && inp.value.trim()){
-      myName = inp.value.trim();
-      localStorage.setItem('mum_who', myName);
-      enterApp();
-    }
-  };
-}
+window.logout = async ()=>{
+  await signOut(auth);
+  location.reload();
+};
 
 function enterApp(){
+  if(appStarted) return;
+  appStarted = true;
   document.getElementById('gate').style.display = 'none';
   document.getElementById('appHeader').style.display = '';
   document.getElementById('appNav').style.display = '';
   document.getElementById('appMain').style.display = '';
-  document.getElementById('whoTxt').textContent = myName;
+  document.getElementById('whoTxt').textContent = myName + ' · ' + myEmail;
   startListening();
 }
 
 async function bootGate(){
-  // Check whether PIN is set
-  let snap;
-  try{
-    snap = await get(ref(db,'meta/pinHash'));
+  gateMsg('Checking sign-in…');
+  // Complete any pending redirect (iOS path).
+  try { await getRedirectResult(auth); } catch(_) {}
+
+  onAuthStateChanged(auth, (user)=>{
+    if(!user){
+      gateMsg('Sign in with your family Google account to access the tracker.');
+      showSignInBtn(true);
+      setSync('off');
+      return;
+    }
+    const email = (user.email || '').toLowerCase();
+    if(!ALLOWED_EMAILS.has(email)){
+      gateMsg('Signed in as ' + email);
+      gateErr('This account is not on the allowlist. Ask Zaher to add it.');
+      showSignInBtn(false);
+      // Sign out so they can try a different account.
+      signOut(auth).then(()=>{
+        setTimeout(()=>{ showSignInBtn(true); }, 1500);
+      });
+      return;
+    }
+    myEmail = email;
+    myName = user.displayName || email.split('@')[0];
     setSync('on');
-  } catch(e){
-    document.getElementById('gateMsg').textContent = 'Could not connect to Firebase. Check internet and refresh.';
-    setSync('off');
-    return;
-  }
-  if(sessionStorage.getItem('mum_pin_ok')==='1'){
-    askForName();
-    return;
-  }
-  if(snap.exists()){
-    pinMode='check';
-    document.getElementById('gateMsg').textContent = 'Enter family PIN';
-  } else {
-    pinMode='set';
-    document.getElementById('gateMsg').textContent = 'First time setup: set a 4-digit family PIN. Share it with family who will be helping.';
-  }
-  document.getElementById('keypad').style.display = '';
+    enterApp();
+  });
 }
 
 /* ============ SYNC INDICATOR ============ */
@@ -954,23 +928,6 @@ window.copyDump = ()=>{
   const ta = document.getElementById('dumpBox');
   ta.select(); document.execCommand('copy');
   toast('Copied — paste to Copilot for analysis');
-};
-window.logout = ()=>{
-  sessionStorage.removeItem('mum_pin_ok'); location.reload();
-};
-window.changePin = async ()=>{
-  const cur = prompt('Enter CURRENT family PIN to confirm:');
-  if(!cur) return;
-  const snap = await get(ref(db,'meta/pinHash'));
-  const curHash = await sha256(cur);
-  if(curHash !== snap.val()){ alert('Wrong current PIN. No change made.'); return; }
-  const next = prompt('Enter NEW 4-digit PIN:');
-  if(!next || !/^\d{4}$/.test(next)){ alert('PIN must be exactly 4 digits.'); return; }
-  const confirm2 = prompt('Confirm the NEW PIN again:');
-  if(confirm2 !== next){ alert('PINs did not match. No change made.'); return; }
-  const newHash = await sha256(next);
-  await set(ref(db,'meta/pinHash'), newHash);
-  alert('PIN changed. Other family devices will be asked for the new PIN next time they open the app — tell them the new PIN out-of-band (WhatsApp/iMessage).');
 };
 window.clearAll = async ()=>{
   if(!confirm('Delete ALL entries for EVERYONE? Make sure you have a CSV backup first.')) return;
