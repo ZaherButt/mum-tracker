@@ -1,0 +1,632 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<title>Mum Tracker</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🌸%3C/text%3E%3C/svg%3E" />
+<style>
+  :root {
+    --bg:#0f172a; --card:#1e293b; --card2:#334155; --txt:#f1f5f9; --muted:#94a3b8;
+    --accent:#38bdf8; --good:#22c55e; --warn:#f59e0b; --bad:#ef4444;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--txt);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%}
+  body{padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+  header{padding:14px 16px;background:var(--card);position:sticky;top:0;z-index:10;
+    border-bottom:1px solid var(--card2);display:flex;justify-content:space-between;align-items:center;gap:8px}
+  header h1{margin:0;font-size:16px;font-weight:600}
+  header .meta{font-size:11px;color:var(--muted);text-align:right;line-height:1.4}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--muted);margin-right:4px;vertical-align:1px}
+  .dot.on{background:var(--good)} .dot.off{background:var(--bad)} .dot.sync{background:var(--warn);animation:pulse 1s infinite}
+  @keyframes pulse{50%{opacity:.3}}
+  nav{display:flex;background:var(--card);border-bottom:1px solid var(--card2);position:sticky;top:48px;z-index:9}
+  nav button{flex:1;background:none;border:0;color:var(--muted);padding:12px 4px;font-size:13px;
+    font-weight:600;border-bottom:2px solid transparent;cursor:pointer}
+  nav button.active{color:var(--accent);border-bottom-color:var(--accent)}
+  main{padding:16px;max-width:720px;margin:0 auto;padding-bottom:32px}
+  .section{display:none}
+  .section.active{display:block}
+  h2{font-size:13px;text-transform:uppercase;color:var(--muted);margin:24px 0 8px;letter-spacing:.05em}
+  h2:first-child{margin-top:0}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  button.action{background:var(--card);color:var(--txt);border:1px solid var(--card2);
+    padding:16px 12px;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;
+    text-align:left;line-height:1.3;transition:transform .05s;font-family:inherit}
+  button.action:active{transform:scale(.97)}
+  button.action small{display:block;color:var(--muted);font-weight:400;font-size:12px;margin-top:4px}
+  button.action.faint{background:var(--bad);border-color:var(--bad);grid-column:1/-1;text-align:center;font-size:17px}
+  button.action.nearfaint{background:#7c2d12;border-color:#9a3412;grid-column:1/-1;text-align:center}
+  button.action.water{background:#0c4a6e;border-color:#0369a1}
+  button.action.bm{background:#4c1d95;border-color:#6d28d9}
+  button.action.position{background:#064e3b;border-color:#047857}
+  .slider-row{background:var(--card);padding:16px;border-radius:12px;margin-bottom:8px}
+  .slider-row label{display:flex;justify-content:space-between;font-weight:600;margin-bottom:12px;font-size:15px}
+  .slider-row .val{font-size:28px;color:var(--accent)}
+  .slider-row input[type=range]{width:100%;-webkit-appearance:none;height:8px;background:var(--card2);
+    border-radius:4px;outline:none}
+  .slider-row input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:32px;height:32px;
+    background:var(--accent);border-radius:50%;cursor:pointer}
+  .slider-row input[type=range]::-moz-range-thumb{width:32px;height:32px;background:var(--accent);
+    border:0;border-radius:50%;cursor:pointer}
+  .scale{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:6px}
+  button.primary{background:var(--accent);color:#000;border:0;padding:14px;border-radius:10px;
+    font-size:15px;font-weight:700;cursor:pointer;width:100%;margin-top:8px;font-family:inherit}
+  button.secondary{background:var(--card2);color:var(--txt);border:0;padding:12px;border-radius:10px;
+    font-size:14px;cursor:pointer;font-family:inherit}
+  .entries{display:flex;flex-direction:column;gap:6px}
+  .entry{background:var(--card);padding:10px 12px;border-radius:8px;font-size:13px;
+    display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+  .entry .when{color:var(--muted);font-variant-numeric:tabular-nums;font-size:11px}
+  .entry .who{color:var(--muted);font-size:10px;font-style:italic}
+  .entry .what{flex:1;min-width:0;word-wrap:break-word}
+  .entry .what b{font-weight:600}
+  .entry.faint{border-left:4px solid var(--bad)}
+  .entry.near_faint{border-left:4px solid var(--warn)}
+  .entry.dose{border-left:4px solid var(--accent)}
+  .entry.pain_check{border-left:4px solid #ec4899}
+  .entry.meal{border-left:4px solid var(--good)}
+  .entry.water{border-left:4px solid #0ea5e9}
+  .entry .del{background:none;border:0;color:var(--muted);cursor:pointer;font-size:18px;padding:0 4px;flex-shrink:0}
+  .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:flex-end;
+    justify-content:center;z-index:100}
+  .modal-bg.open{display:flex}
+  .modal{background:var(--card);width:100%;max-width:720px;border-radius:16px 16px 0 0;
+    padding:20px;max-height:90vh;overflow-y:auto;padding-bottom:calc(20px + env(safe-area-inset-bottom))}
+  .modal h3{margin:0 0 16px;font-size:18px}
+  .modal label{display:block;font-size:13px;color:var(--muted);margin:12px 0 4px;font-weight:600}
+  .modal input,.modal select,.modal textarea{width:100%;background:var(--bg);color:var(--txt);
+    border:1px solid var(--card2);border-radius:8px;padding:10px;font-size:15px;font-family:inherit}
+  .modal textarea{min-height:60px;resize:vertical}
+  .modal .row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .modal-actions{display:flex;gap:8px;margin-top:20px}
+  .modal-actions button{flex:1}
+  .stat{background:var(--card);padding:12px;border-radius:10px;margin-bottom:8px;display:flex;
+    justify-content:space-between;align-items:center}
+  .stat .label{color:var(--muted);font-size:13px}
+  .stat .v{font-size:20px;font-weight:700}
+  .stat .v.good{color:var(--good)} .stat .v.warn{color:var(--warn)} .stat .v.bad{color:var(--bad)}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--good);
+    color:#000;padding:12px 20px;border-radius:24px;font-weight:600;z-index:200;
+    box-shadow:0 4px 12px rgba(0,0,0,.4);display:none;max-width:90%;text-align:center}
+  .toast.show{display:block}
+  .empty{text-align:center;color:var(--muted);padding:40px 20px;font-style:italic}
+  textarea.dump{width:100%;height:200px;background:var(--bg);color:var(--txt);border:1px solid var(--card2);
+    border-radius:8px;padding:10px;font-family:ui-monospace,Menlo,monospace;font-size:11px}
+  .hint{font-size:12px;color:var(--muted);line-height:1.5;margin:8px 0}
+  .pill{display:inline-block;padding:2px 8px;background:var(--card2);border-radius:10px;font-size:11px;
+    color:var(--muted);margin-left:6px}
+  /* PIN gate */
+  .gate{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;
+    align-items:center;justify-content:center;z-index:1000;padding:24px}
+  .gate h1{font-size:22px;margin:0 0 8px}
+  .gate p{color:var(--muted);text-align:center;margin:0 0 24px;max-width:300px;font-size:14px;line-height:1.5}
+  .pin-display{display:flex;gap:10px;margin-bottom:24px}
+  .pin-dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--card2);background:transparent}
+  .pin-dot.filled{background:var(--accent);border-color:var(--accent)}
+  .pin-dot.err{border-color:var(--bad);background:var(--bad)}
+  .keypad{display:grid;grid-template-columns:repeat(3,80px);gap:12px}
+  .keypad button{width:80px;height:80px;border-radius:50%;font-size:28px;font-weight:600;
+    background:var(--card);color:var(--txt);border:1px solid var(--card2);cursor:pointer;font-family:inherit}
+  .keypad button:active{background:var(--card2)}
+  .keypad button.empty{visibility:hidden}
+  .gate .err{color:var(--bad);font-size:13px;margin-top:12px;min-height:18px}
+  .gate .who-name{margin-top:20px;background:var(--card);padding:8px 16px;border-radius:8px;
+    border:1px solid var(--card2);color:var(--txt);font-size:14px;text-align:center;width:240px}
+</style>
+</head>
+<body>
+
+<!-- ============ PIN GATE ============ -->
+<div class="gate" id="gate">
+  <h1 id="gateTitle">🌸 Mum Tracker</h1>
+  <p id="gateMsg">Loading…</p>
+  <div class="pin-display" id="pinDisplay">
+    <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
+  </div>
+  <div class="keypad" id="keypad" style="display:none">
+    <button onclick="pinPress('1')">1</button><button onclick="pinPress('2')">2</button><button onclick="pinPress('3')">3</button>
+    <button onclick="pinPress('4')">4</button><button onclick="pinPress('5')">5</button><button onclick="pinPress('6')">6</button>
+    <button onclick="pinPress('7')">7</button><button onclick="pinPress('8')">8</button><button onclick="pinPress('9')">9</button>
+    <button class="empty"></button><button onclick="pinPress('0')">0</button><button onclick="pinBack()">⌫</button>
+  </div>
+  <div class="err" id="gateErr"></div>
+  <input id="whoName" class="who-name" placeholder="Your name (e.g. Zaher)" style="display:none" />
+</div>
+
+<header style="display:none" id="appHeader">
+  <h1>🌸 Mum Tracker</h1>
+  <div class="meta">
+    <div><span class="dot" id="syncDot"></span><span id="syncTxt">…</span></div>
+    <div id="whoTxt"></div>
+  </div>
+</header>
+
+<nav style="display:none" id="appNav">
+  <button class="active" data-tab="log">Log</button>
+  <button data-tab="view">View</button>
+  <button data-tab="stats">Today</button>
+  <button data-tab="data">Data</button>
+</nav>
+
+<main style="display:none" id="appMain">
+
+  <!-- LOG TAB -->
+  <section id="tab-log" class="section active">
+    <button class="action faint" onclick="openModal('faint')">🚨 FAINT (blackout)</button>
+    <button class="action nearfaint" onclick="openModal('near_faint')">⚠️ Near-faint / dizzy</button>
+
+    <h2>Pain check</h2>
+    <div class="slider-row">
+      <label>Pain right now <span class="val" id="painVal">5</span></label>
+      <input type="range" min="0" max="10" value="5" id="painSlider" oninput="document.getElementById('painVal').textContent=this.value" />
+      <div class="scale"><span>0 none</span><span>5</span><span>10 worst</span></div>
+      <button class="primary" onclick="logPain()">Log pain</button>
+    </div>
+
+    <h2>Medication dose</h2>
+    <div class="grid">
+      <button class="action" onclick="quickDose('Diclofenac','100mg','rectal')">💊 Diclofenac<small>100mg suppository</small></button>
+      <button class="action" onclick="quickDose('Gabapentin','300mg','oral')">💊 Gabapentin<small>300mg cap (TDS)</small></button>
+      <button class="action" onclick="quickDose('Diazepam','2mg','oral')">💊 Diazepam<small>2mg tab (TDS)</small></button>
+      <button class="action" onclick="quickDose('Co-dydramol','15/500mg','oral')">💊 Co-dydramol<small>15/500mg</small></button>
+      <button class="action" onclick="quickDose('Levothyroxine','50mcg','oral')">💊 Levothyroxine<small>50mcg</small></button>
+      <button class="action" onclick="openModal('dose')">＋ Other drug…</button>
+    </div>
+
+    <h2>Meals, water, bowels</h2>
+    <div class="grid">
+      <button class="action" onclick="quickMeal()">🍽️ Meal / snack</button>
+      <button class="action water" onclick="quickWater(250)">💧 Water +250 ml</button>
+      <button class="action water" onclick="quickWater(500)">💧 Water +500 ml</button>
+      <button class="action bm" onclick="openModal('bowel_movement')">🚽 Bowel movement</button>
+    </div>
+
+    <h2>Position change</h2>
+    <div class="grid">
+      <button class="action position" onclick="quickPosition('flat')">🛌 Flat</button>
+      <button class="action position" onclick="quickPosition('reclined')">🛋 Reclined</button>
+      <button class="action position" onclick="quickPosition('feet_dangling')">🦶 Feet dangling</button>
+      <button class="action position" onclick="quickPosition('standing')">🧍 Standing</button>
+      <button class="action position" onclick="quickPosition('sitting_upright')">🪑 Sitting upright (RISK)</button>
+      <button class="action" onclick="openModal('vitals')">❤️ BP / HR reading</button>
+    </div>
+
+    <h2>Sleep</h2>
+    <div class="grid">
+      <button class="action" onclick="quickEvent('sleep','sleep_start')">😴 Sleep start</button>
+      <button class="action" onclick="quickEvent('sleep','wake')">☀️ Wake</button>
+    </div>
+  </section>
+
+  <!-- VIEW TAB -->
+  <section id="tab-view" class="section">
+    <h2>Recent entries (newest first)</h2>
+    <div class="entries" id="entriesList"></div>
+  </section>
+
+  <!-- STATS TAB -->
+  <section id="tab-stats" class="section">
+    <h2>Today at a glance</h2>
+    <div id="statsBox"></div>
+    <h2>Last faint / near-faint</h2>
+    <div id="lastFaint" class="entries"></div>
+  </section>
+
+  <!-- DATA TAB -->
+  <section id="tab-data" class="section">
+    <h2>Share &amp; export</h2>
+    <p class="hint">Data lives in Firebase and syncs live across all family devices. Use Download CSV to back up locally or to paste into Copilot for trend analysis.</p>
+    <button class="primary" onclick="exportCSV()">⬇️ Download CSV</button>
+
+    <h2>Copy log to paste to Copilot</h2>
+    <textarea class="dump" id="dumpBox" readonly></textarea>
+    <button class="secondary" style="width:100%;margin-top:8px" onclick="copyDump()">📋 Copy all</button>
+
+    <h2>Session</h2>
+    <button class="secondary" style="width:100%" onclick="logout()">🔒 Sign out (clear PIN on this device)</button>
+
+    <h2>Danger zone</h2>
+    <button class="secondary" style="width:100%;background:#7f1d1d" onclick="clearAll()">🗑 Clear ALL entries (everyone)</button>
+  </section>
+
+</main>
+
+<div class="modal-bg" id="modalBg" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <h3 id="modalTitle">Log event</h3>
+    <div id="modalBody"></div>
+    <div class="modal-actions">
+      <button class="secondary" onclick="closeModal()">Cancel</button>
+      <button class="primary" onclick="saveModal()">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import { getDatabase, ref, push, set, remove, onValue, get, child }
+  from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCn3hqN7WuF8tLhnV8h7sePgua97Ht2aRg",
+  authDomain: "mum-tracker.firebaseapp.com",
+  databaseURL: "https://mum-tracker-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "mum-tracker",
+  storageBucket: "mum-tracker.firebasestorage.app",
+  messagingSenderId: "288051469885",
+  appId: "1:288051469885:web:182be2ff5a70e94f55d454"
+};
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+const COLS = ['timestamp','event_type','drug_name','dose','route','pain_score_0_10',
+              'position','minutes_since_last_meal','minutes_since_last_dose_any',
+              'bp_systolic','bp_diastolic','heart_rate','symptoms','bowel_movement',
+              'water_ml','notes','logged_by'];
+
+let entries = [];   // [{key, ...row}]
+let myName = localStorage.getItem('mum_who') || '';
+
+/* ============ PIN GATE ============ */
+async function sha256(s){
+  const buf = new TextEncoder().encode(s);
+  const hash = await crypto.subtle.digest('SHA-256', buf);
+  return Array.from(new Uint8Array(hash)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+let pinBuf = '';
+let pinMode = 'check'; // 'set' | 'check'
+let pinNew = '';
+
+window.pinPress = (d)=>{
+  if(pinBuf.length>=4) return;
+  pinBuf += d;
+  updatePinDots();
+  if(pinBuf.length===4) submitPin();
+};
+window.pinBack = ()=>{ pinBuf = pinBuf.slice(0,-1); updatePinDots(true); };
+function updatePinDots(clearErr){
+  document.querySelectorAll('#pinDisplay .pin-dot').forEach((d,i)=>{
+    d.classList.remove('err');
+    d.classList.toggle('filled', i<pinBuf.length);
+  });
+  if(clearErr) document.getElementById('gateErr').textContent='';
+}
+function pinErr(msg){
+  document.getElementById('gateErr').textContent = msg;
+  document.querySelectorAll('#pinDisplay .pin-dot').forEach(d=>d.classList.add('err'));
+  pinBuf = '';
+  setTimeout(()=>updatePinDots(),600);
+}
+
+async function submitPin(){
+  const snap = await get(ref(db,'meta/pinHash'));
+  if(pinMode==='set'){
+    if(!pinNew){
+      pinNew = pinBuf; pinBuf='';
+      document.getElementById('gateMsg').textContent = 'Confirm the same PIN again.';
+      updatePinDots();
+    } else {
+      if(pinNew !== pinBuf){ pinErr('PINs do not match — try again'); pinNew=''; document.getElementById('gateMsg').textContent='Set a 4-digit family PIN.'; return; }
+      const h = await sha256(pinNew);
+      await set(ref(db,'meta/pinHash'), h);
+      sessionStorage.setItem('mum_pin_ok','1');
+      pinNew='';
+      askForName();
+    }
+  } else {
+    const h = await sha256(pinBuf);
+    if(h === snap.val()){ sessionStorage.setItem('mum_pin_ok','1'); askForName(); }
+    else { pinErr('Wrong PIN'); }
+  }
+}
+
+function askForName(){
+  if(myName){ enterApp(); return; }
+  document.getElementById('gateTitle').textContent = '👋 Welcome';
+  document.getElementById('gateMsg').textContent = 'What\'s your name? (so we know who logged what)';
+  document.getElementById('keypad').style.display = 'none';
+  document.getElementById('pinDisplay').style.display = 'none';
+  const inp = document.getElementById('whoName');
+  inp.style.display = 'block'; inp.focus();
+  inp.onkeydown = (e)=>{
+    if(e.key==='Enter' && inp.value.trim()){
+      myName = inp.value.trim();
+      localStorage.setItem('mum_who', myName);
+      enterApp();
+    }
+  };
+}
+
+function enterApp(){
+  document.getElementById('gate').style.display = 'none';
+  document.getElementById('appHeader').style.display = '';
+  document.getElementById('appNav').style.display = '';
+  document.getElementById('appMain').style.display = '';
+  document.getElementById('whoTxt').textContent = myName;
+  startListening();
+}
+
+async function bootGate(){
+  // Check whether PIN is set
+  let snap;
+  try{
+    snap = await get(ref(db,'meta/pinHash'));
+    setSync('on');
+  } catch(e){
+    document.getElementById('gateMsg').textContent = 'Could not connect to Firebase. Check internet and refresh.';
+    setSync('off');
+    return;
+  }
+  if(sessionStorage.getItem('mum_pin_ok')==='1'){
+    askForName();
+    return;
+  }
+  if(snap.exists()){
+    pinMode='check';
+    document.getElementById('gateMsg').textContent = 'Enter family PIN';
+  } else {
+    pinMode='set';
+    document.getElementById('gateMsg').textContent = 'First time setup: set a 4-digit family PIN. Share it with family who will be helping.';
+  }
+  document.getElementById('keypad').style.display = '';
+}
+
+/* ============ SYNC INDICATOR ============ */
+function setSync(state){
+  const dot = document.getElementById('syncDot');
+  const txt = document.getElementById('syncTxt');
+  dot.classList.remove('on','off','sync');
+  if(state==='on'){ dot.classList.add('on'); txt.textContent='Live'; }
+  else if(state==='sync'){ dot.classList.add('sync'); txt.textContent='Syncing…'; }
+  else { dot.classList.add('off'); txt.textContent='Offline'; }
+}
+
+/* ============ FIREBASE LISTEN ============ */
+function startListening(){
+  setSync('sync');
+  onValue(ref(db,'entries'), (snap)=>{
+    const v = snap.val() || {};
+    entries = Object.keys(v).map(k=>({key:k, ...v[k]}));
+    entries.sort((a,b)=>(a.timestamp||'').localeCompare(b.timestamp||''));
+    setSync('on');
+    render();
+  }, (err)=>{ setSync('off'); console.error(err); });
+}
+
+/* ============ ENTRY API ============ */
+function now(){
+  const d=new Date(); const p=n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+async function addEntry(partial){
+  const lastMeal = [...entries].reverse().find(r=>r.event_type==='meal');
+  const lastDose = [...entries].reverse().find(r=>r.event_type==='dose');
+  const ts = partial.timestamp || now();
+  const minsSince = (other)=>{
+    if(!other) return '';
+    const a = new Date(ts.replace(' ','T')); const b = new Date(other.timestamp.replace(' ','T'));
+    if(isNaN(a)||isNaN(b)) return '';
+    return Math.round((a-b)/60000);
+  };
+  const row = Object.fromEntries(COLS.map(c=>[c,'']));
+  row.timestamp = ts;
+  row.logged_by = myName || '';
+  if(lastMeal) row.minutes_since_last_meal = minsSince(lastMeal);
+  if(lastDose) row.minutes_since_last_dose_any = minsSince(lastDose);
+  Object.assign(row, partial);
+  if(!row.logged_by) row.logged_by = myName || '';
+  setSync('sync');
+  try{
+    await push(ref(db,'entries'), row);
+    toast('Logged: ' + (partial.event_type || 'entry'));
+  } catch(e){
+    toast('⚠️ Save failed: ' + e.message); setSync('off');
+  }
+}
+
+/* ============ QUICK ACTIONS ============ */
+window.quickDose = (name,dose,route)=>addEntry({event_type:'dose',drug_name:name,dose,route});
+window.quickMeal = ()=>addEntry({event_type:'meal'});
+window.quickWater = (ml)=>addEntry({event_type:'water',water_ml:ml});
+window.quickPosition = (pos)=>addEntry({event_type:'position_change',position:pos});
+window.quickEvent = (t,note)=>addEntry({event_type:t,notes:note});
+window.logPain = ()=>{
+  const v = document.getElementById('painSlider').value;
+  addEntry({event_type:'pain_check', pain_score_0_10:v});
+};
+
+/* ============ MODAL ============ */
+let modalMode = null;
+window.openModal = (mode)=>{
+  modalMode = mode;
+  const titles = {
+    faint:'🚨 Faint — blackout', near_faint:'⚠️ Near-faint / dizzy',
+    dose:'💊 Other medication', bowel_movement:'🚽 Bowel movement', vitals:'❤️ BP / HR reading'
+  };
+  document.getElementById('modalTitle').textContent = titles[mode]||'Log event';
+  let html = '';
+  const common = `
+    <label>Time (leave for now)</label><input type="datetime-local" id="m_time" />
+    <label>Position when it happened</label>
+    <select id="m_pos"><option value="">—</option><option>flat</option><option>reclined</option>
+      <option>sitting_upright</option><option>feet_dangling</option><option>standing</option></select>`;
+  if(mode==='faint'||mode==='near_faint'){
+    html = common + `
+      <label>Pain at the moment (0–10)</label><input type="number" min="0" max="10" id="m_pain" />
+      <div class="row"><div><label>BP systolic</label><input type="number" id="m_bps" /></div>
+        <div><label>BP diastolic</label><input type="number" id="m_bpd" /></div></div>
+      <label>Heart rate</label><input type="number" id="m_hr" />
+      <label>Symptoms</label><input type="text" id="m_symp" placeholder="dizzy, pale, sweaty, nausea" />
+      <label>Notes — what happened</label><textarea id="m_notes"></textarea>`;
+  } else if(mode==='dose'){
+    html = `<label>Time</label><input type="datetime-local" id="m_time" />
+      <label>Drug name</label><input type="text" id="m_drug" />
+      <div class="row"><div><label>Dose</label><input type="text" id="m_dose" /></div>
+        <div><label>Route</label><select id="m_route"><option>oral</option><option>rectal</option>
+          <option>topical</option><option>sublingual</option><option>injection</option></select></div></div>
+      <label>Notes</label><textarea id="m_notes"></textarea>`;
+  } else if(mode==='bowel_movement'){
+    html = `<label>Time</label><input type="datetime-local" id="m_time" />
+      <label>How was it?</label>
+      <select id="m_bm"><option value="yes_easy">Easy — no straining</option>
+        <option value="yes_strained">With straining (vasovagal risk)</option>
+        <option value="no">Tried but no result</option></select>
+      <label>Notes</label><textarea id="m_notes"></textarea>`;
+  } else if(mode==='vitals'){
+    html = `<label>Time</label><input type="datetime-local" id="m_time" />
+      <label>Position when measured</label>
+      <select id="m_pos"><option>flat</option><option>reclined</option>
+        <option>sitting_upright</option><option>standing</option></select>
+      <div class="row"><div><label>BP systolic</label><input type="number" id="m_bps" /></div>
+        <div><label>BP diastolic</label><input type="number" id="m_bpd" /></div></div>
+      <label>Heart rate</label><input type="number" id="m_hr" />
+      <label>Notes</label><textarea id="m_notes"></textarea>`;
+  }
+  document.getElementById('modalBody').innerHTML = html;
+  document.getElementById('modalBg').classList.add('open');
+};
+window.closeModal = ()=>{ document.getElementById('modalBg').classList.remove('open'); modalMode=null; };
+function val(id){ const el=document.getElementById(id); return el?el.value:''; }
+function tsFromInput(id){
+  const v = val(id); if(!v) return now();
+  return v.replace('T',' ').slice(0,16);
+}
+window.saveModal = ()=>{
+  const m = modalMode;
+  const ts = tsFromInput('m_time');
+  let entry = { event_type:m, timestamp:ts, notes:val('m_notes') };
+  if(m==='faint'||m==='near_faint'){
+    entry.pain_score_0_10 = val('m_pain'); entry.position = val('m_pos');
+    entry.bp_systolic = val('m_bps'); entry.bp_diastolic = val('m_bpd');
+    entry.heart_rate = val('m_hr'); entry.symptoms = val('m_symp');
+  } else if(m==='dose'){
+    entry.drug_name = val('m_drug'); entry.dose = val('m_dose'); entry.route = val('m_route');
+  } else if(m==='bowel_movement'){ entry.bowel_movement = val('m_bm'); }
+  else if(m==='vitals'){
+    entry.position = val('m_pos'); entry.bp_systolic = val('m_bps');
+    entry.bp_diastolic = val('m_bpd'); entry.heart_rate = val('m_hr');
+  }
+  addEntry(entry);
+  closeModal();
+};
+
+/* ============ RENDER ============ */
+function describe(r){
+  const t = r.event_type;
+  if(t==='dose') return `<b>💊 ${r.drug_name}</b> ${r.dose||''} ${r.route?'<span class="pill">'+r.route+'</span>':''}`;
+  if(t==='pain_check') return `<b>📊 Pain ${r.pain_score_0_10}/10</b>`;
+  if(t==='faint') return `<b>🚨 FAINT</b> ${r.pain_score_0_10?'pain '+r.pain_score_0_10+'/10':''} ${r.position?'· '+r.position:''}<br><small>${r.symptoms||''} ${r.notes||''}</small>`;
+  if(t==='near_faint') return `<b>⚠️ Near-faint</b> ${r.pain_score_0_10?'pain '+r.pain_score_0_10+'/10':''} ${r.position?'· '+r.position:''}<br><small>${r.symptoms||''} ${r.notes||''}</small>`;
+  if(t==='meal') return `<b>🍽️ Meal</b> ${r.notes||''}`;
+  if(t==='water') return `<b>💧 Water +${r.water_ml}ml</b>`;
+  if(t==='position_change') return `<b>🔄 Position:</b> ${r.position}`;
+  if(t==='bowel_movement') return `<b>🚽 BM:</b> ${r.bowel_movement} ${r.notes||''}`;
+  if(t==='vitals') return `<b>❤️ BP ${r.bp_systolic}/${r.bp_diastolic} · HR ${r.heart_rate}</b> ${r.position?'('+r.position+')':''}`;
+  if(t==='sleep') return `<b>😴 ${r.notes||'Sleep'}</b>`;
+  return `<b>${t}</b> ${r.notes||''}`;
+}
+function render(){
+  const list = document.getElementById('entriesList');
+  if(!entries.length){ list.innerHTML = '<div class="empty">No entries yet. Start logging in the Log tab.</div>'; }
+  else {
+    list.innerHTML = entries.slice().reverse().map(r=>{
+      const who = r.logged_by ? `· ${r.logged_by}` : '';
+      return `<div class="entry ${r.event_type}">
+        <div class="what"><div class="when">${r.timestamp} <span class="who">${who}</span></div>${describe(r)}</div>
+        <button class="del" onclick="delEntry('${r.key}')" title="Delete">✕</button>
+      </div>`;
+    }).join('');
+  }
+  renderStats();
+  document.getElementById('dumpBox').value = toCSV(entries);
+}
+window.delEntry = async (key)=>{
+  if(!confirm('Delete this entry?')) return;
+  setSync('sync');
+  await remove(ref(db,'entries/'+key));
+};
+function renderStats(){
+  const today = new Date().toISOString().slice(0,10);
+  const t = entries.filter(r=>(r.timestamp||'').startsWith(today));
+  const water = t.filter(r=>r.event_type==='water').reduce((s,r)=>s+(+r.water_ml||0),0);
+  const doses = t.filter(r=>r.event_type==='dose').length;
+  const meals = t.filter(r=>r.event_type==='meal').length;
+  const pains = t.filter(r=>r.event_type==='pain_check').map(r=>+r.pain_score_0_10).filter(n=>!isNaN(n));
+  const avgPain = pains.length ? (pains.reduce((a,b)=>a+b,0)/pains.length).toFixed(1) : '—';
+  const maxPain = pains.length ? Math.max(...pains) : '—';
+  const faints = t.filter(r=>r.event_type==='faint'||r.event_type==='near_faint').length;
+  const lastBM = [...entries].reverse().find(r=>r.event_type==='bowel_movement' && r.bowel_movement && r.bowel_movement.startsWith('yes'));
+  const hrsSinceBM = lastBM ? Math.round((new Date() - new Date(lastBM.timestamp.replace(' ','T')))/3600000) : null;
+  const waterClass = water>=1500?'good':water>=1000?'warn':'bad';
+  const bmClass = hrsSinceBM===null?'warn':hrsSinceBM<48?'good':'bad';
+  document.getElementById('statsBox').innerHTML = `
+    <div class="stat"><span class="label">💧 Water today</span><span class="v ${waterClass}">${water} ml <small style="font-size:11px;color:var(--muted)">/ 1500–2000</small></span></div>
+    <div class="stat"><span class="label">💊 Doses logged</span><span class="v">${doses}</span></div>
+    <div class="stat"><span class="label">🍽️ Meals</span><span class="v">${meals}</span></div>
+    <div class="stat"><span class="label">📊 Avg pain today</span><span class="v">${avgPain}<small style="font-size:11px;color:var(--muted)"> / max ${maxPain}</small></span></div>
+    <div class="stat"><span class="label">🚨 Faints / near-faints</span><span class="v ${faints?'bad':'good'}">${faints}</span></div>
+    <div class="stat"><span class="label">🚽 Last bowel movement</span><span class="v ${bmClass}">${hrsSinceBM===null?'none logged':hrsSinceBM+' h ago'}</span></div>`;
+  const lastF = [...entries].reverse().find(r=>r.event_type==='faint'||r.event_type==='near_faint');
+  document.getElementById('lastFaint').innerHTML = lastF ?
+    `<div class="entry ${lastF.event_type}"><div class="what"><div class="when">${lastF.timestamp}</div>${describe(lastF)}</div></div>` :
+    '<div class="empty">No faints logged 🎉</div>';
+}
+
+/* ============ CSV ============ */
+function toCSV(rows){
+  const esc = v => { v = (v==null?'':String(v)); return /[,"\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; };
+  return [COLS.join(',')].concat(rows.map(r=>COLS.map(c=>esc(r[c])).join(','))).join('\n');
+}
+window.exportCSV = ()=>{
+  const blob = new Blob([toCSV(entries)], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const stamp = new Date().toISOString().slice(0,16).replace(/[T:]/g,'-');
+  a.href = url; a.download = `mum_tracker_${stamp}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+  toast('CSV downloaded');
+};
+window.copyDump = ()=>{
+  const ta = document.getElementById('dumpBox');
+  ta.select(); document.execCommand('copy');
+  toast('Copied — paste to Copilot for analysis');
+};
+window.logout = ()=>{
+  sessionStorage.removeItem('mum_pin_ok'); location.reload();
+};
+window.clearAll = async ()=>{
+  if(!confirm('Delete ALL entries for EVERYONE? Make sure you have a CSV backup first.')) return;
+  if(!confirm('Really sure? This wipes the shared database for everyone.')) return;
+  setSync('sync');
+  await remove(ref(db,'entries'));
+  toast('All entries cleared');
+};
+
+/* ============ UI ============ */
+document.querySelectorAll('nav button').forEach(b=>{
+  b.onclick = ()=>{
+    document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.section').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    document.getElementById('tab-'+b.dataset.tab).classList.add('active');
+  };
+});
+let toastTimer;
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('show'), 2200);
+}
+
+bootGate();
+</script>
+</body>
+</html>
