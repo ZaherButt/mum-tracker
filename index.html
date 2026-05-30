@@ -94,6 +94,13 @@
   .entry.dose{border-left-color:var(--accent2)}
   .entry.pain_check{border-left-color:var(--accent)}
   .entry.mood_check{border-left-color:#f0abfc}
+  .mood-strip{display:flex;gap:6px}
+  .mood-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
+    background:var(--card);border:0;border-radius:var(--radius-sm);padding:12px 2px;
+    cursor:pointer;font-family:inherit;box-shadow:var(--shadow);transition:transform .05s,background .15s}
+  .mood-btn span{font-size:34px;line-height:1}
+  .mood-btn small{font-size:10px;color:var(--muted);font-weight:600}
+  .mood-btn:active{transform:scale(.92);background:var(--card2)}
   .entry.meal{border-left-color:var(--good)}
   .entry.water{border-left-color:#7dd3fc}
   .entry.bowel_movement{border-left-color:#c4b5fd}
@@ -258,10 +265,12 @@
     </div>
 
     <h2>Mood check</h2>
-    <div class="grid">
-      <button class="action mood-sad" onclick="quickMood('sad')">😟 Sad</button>
-      <button class="action mood-neutral" onclick="quickMood('neutral')">😐 Neutral</button>
-      <button class="action mood-happy" onclick="quickMood('happy')">🙂 Happy</button>
+    <div class="mood-strip">
+      <button class="mood-btn" onclick="quickMood('very_sad')"><span>😢</span><small>Very sad</small></button>
+      <button class="mood-btn" onclick="quickMood('sad')"><span>🙁</span><small>Sad</small></button>
+      <button class="mood-btn" onclick="quickMood('neutral')"><span>😐</span><small>Neutral</small></button>
+      <button class="mood-btn" onclick="quickMood('happy')"><span>🙂</span><small>Happy</small></button>
+      <button class="mood-btn" onclick="quickMood('very_happy')"><span>😄</span><small>Very happy</small></button>
     </div>
 
     <h2>Medication dose</h2>
@@ -732,7 +741,7 @@ function describe(r){
   const e = v => escHtml(v==null?'':String(v));
   if(t==='dose') return `<b>💊 ${e(r.drug_name)}</b> ${e(r.dose||'')} ${r.route?'<span class="pill">'+e(r.route)+'</span>':''}`;
   if(t==='pain_check') return `<b>📊 Pain ${e(r.pain_score_0_10)}/10</b>`;
-  if(t==='mood_check'){ const m={sad:'😟 Sad',neutral:'😐 Neutral',happy:'🙂 Happy'}; return `<b>${m[r.mood]||('🙂 '+e(r.mood))}</b>`; }
+  if(t==='mood_check'){ const m={very_sad:'😢 Very sad',sad:'🙁 Sad',neutral:'😐 Neutral',happy:'🙂 Happy',very_happy:'😄 Very happy'}; return `<b>${m[r.mood]||('🙂 '+e(r.mood))}</b>`; }
   if(t==='faint') return `<b>🚨 FAINT</b> ${r.pain_score_0_10?'pain '+e(r.pain_score_0_10)+'/10':''} ${r.position?'· '+e(r.position):''}<br><small>${e(r.symptoms||'')} ${e(r.notes||'')}</small>`;
   if(t==='near_faint') return `<b>⚠️ Near-faint</b> ${r.pain_score_0_10?'pain '+e(r.pain_score_0_10)+'/10':''} ${r.position?'· '+e(r.position):''}<br><small>${e(r.symptoms||'')} ${e(r.notes||'')}</small>`;
   if(t==='meal') return `<b>🍽️ Meal</b> ${e(r.notes||'')}`;
