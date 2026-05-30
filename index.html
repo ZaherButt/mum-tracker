@@ -93,6 +93,7 @@
   .entry.near_faint{border-left-color:var(--warn)}
   .entry.dose{border-left-color:var(--accent2)}
   .entry.pain_check{border-left-color:var(--accent)}
+  .entry.mood_check{border-left-color:#f0abfc}
   .entry.meal{border-left-color:var(--good)}
   .entry.water{border-left-color:#7dd3fc}
   .entry.bowel_movement{border-left-color:#c4b5fd}
@@ -256,6 +257,13 @@
       <button class="primary" onclick="logPain()">Log pain</button>
     </div>
 
+    <h2>Mood check</h2>
+    <div class="grid">
+      <button class="action mood-sad" onclick="quickMood('sad')">😟 Sad</button>
+      <button class="action mood-neutral" onclick="quickMood('neutral')">😐 Neutral</button>
+      <button class="action mood-happy" onclick="quickMood('happy')">🙂 Happy</button>
+    </div>
+
     <h2>Medication dose</h2>
     <div class="grid" id="drugGrid"></div>
 
@@ -386,7 +394,7 @@ const ALLOWED_EMAILS = new Set([
   'norenbutt02@gmail.com'
 ]);
 
-const COLS = ['timestamp','event_type','drug_name','dose','route','pain_score_0_10',
+const COLS = ['timestamp','event_type','drug_name','dose','route','pain_score_0_10','mood',
               'position','minutes_since_last_meal','minutes_since_last_dose_any',
               'bp_systolic','bp_diastolic','heart_rate','symptoms','bowel_movement',
               'water_ml','notes','logged_by'];
@@ -641,6 +649,7 @@ window.quickDose = (name,dose,route)=>addEntry({event_type:'dose',drug_name:name
 window.quickMeal = ()=>addEntry({event_type:'meal'});
 window.quickWater = (ml)=>addEntry({event_type:'water',water_ml:ml});
 window.quickPosition = (pos)=>addEntry({event_type:'position_change',position:pos});
+window.quickMood = (m)=>addEntry({event_type:'mood_check',mood:m});
 window.quickEvent = (t,note)=>addEntry({event_type:t,notes:note});
 window.logPain = ()=>{
   const v = document.getElementById('painSlider').value;
@@ -723,6 +732,7 @@ function describe(r){
   const e = v => escHtml(v==null?'':String(v));
   if(t==='dose') return `<b>💊 ${e(r.drug_name)}</b> ${e(r.dose||'')} ${r.route?'<span class="pill">'+e(r.route)+'</span>':''}`;
   if(t==='pain_check') return `<b>📊 Pain ${e(r.pain_score_0_10)}/10</b>`;
+  if(t==='mood_check'){ const m={sad:'😟 Sad',neutral:'😐 Neutral',happy:'🙂 Happy'}; return `<b>${m[r.mood]||('🙂 '+e(r.mood))}</b>`; }
   if(t==='faint') return `<b>🚨 FAINT</b> ${r.pain_score_0_10?'pain '+e(r.pain_score_0_10)+'/10':''} ${r.position?'· '+e(r.position):''}<br><small>${e(r.symptoms||'')} ${e(r.notes||'')}</small>`;
   if(t==='near_faint') return `<b>⚠️ Near-faint</b> ${r.pain_score_0_10?'pain '+e(r.pain_score_0_10)+'/10':''} ${r.position?'· '+e(r.position):''}<br><small>${e(r.symptoms||'')} ${e(r.notes||'')}</small>`;
   if(t==='meal') return `<b>🍽️ Meal</b> ${e(r.notes||'')}`;
@@ -883,7 +893,7 @@ function renderInsights(){
   });
   const colorFor = t => ({dose:'var(--accent2)',pain_check:'var(--accent)',meal:'var(--good)',
     water:'#7dd3fc',bowel_movement:'#c4b5fd',faint:'var(--bad)',near_faint:'var(--warn)',
-    sleep:'#94a3b8'})[t] || 'var(--muted)';
+    mood_check:'#f0abfc',sleep:'#94a3b8'})[t] || 'var(--muted)';
   const ticks = last24.map(r=>{
     const t = new Date(r.timestamp.replace(' ','T'));
     const pct = 100 - ((now - t) / (24*3600000)) * 100;
