@@ -158,6 +158,9 @@
   .reg-form-actions button{flex:1}
   .dose-row .status{font-size:9px;color:var(--muted);margin-left:8px;text-transform:uppercase;
     letter-spacing:.05em;font-weight:700;vertical-align:1px}
+  .nf-lbl{display:block;font-size:12px;color:var(--muted);font-weight:600;margin:10px 0 4px}
+  .nf-check{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;margin-bottom:6px}
+  .nf-check input{width:auto;margin:0}
   .toast{position:fixed;top:calc(70px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);
     background:var(--accent);color:#1a1625;padding:13px 24px;border-radius:999px;font-weight:600;z-index:200;
     box-shadow:0 8px 24px rgba(248,165,194,.4);display:none;max-width:90%;text-align:center;font-size:14px}
@@ -299,6 +302,10 @@
     <p class="hint">Data lives in Firebase and syncs live across all family devices. Use Download CSV to back up locally or to paste into Copilot for trend analysis.</p>
     <button class="primary" onclick="exportCSV()">⬇️ Download CSV</button>
 
+    <h2>🔔 Reminders &amp; alerts (Telegram)</h2>
+    <p class="hint">Med reminders for mum and a “no logging for a while” alert for the family — sent to a Telegram group. Configure thresholds here; no code changes needed.</p>
+    <button class="secondary" style="width:100%" onclick="openNotify()">🔔 Configure reminders &amp; alerts</button>
+
     <h2>Copy log to paste to Copilot</h2>
     <textarea class="dump" id="dumpBox" readonly></textarea>
     <button class="secondary" style="width:100%;margin-top:8px" onclick="copyDump()">📋 Copy all</button>
@@ -331,6 +338,18 @@
     <p class="hint" style="margin:-4px 0 14px">Add, edit or stop meds. Past dose entries are always kept — stopping a med just hides its button and removes it from the “time since dose” tracker.</p>
     <div id="regBody"></div>
     <div class="modal-actions"><button class="secondary" onclick="closeRegimen()">Close</button></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="notifModalBg" onclick="if(event.target===this)closeNotify()">
+  <div class="modal">
+    <h3>🔔 Reminders &amp; alerts</h3>
+    <p class="hint" style="margin:-4px 0 14px">Sends to a Telegram group (everyone in the group is looped in). A free GitHub Action checks every ~15 min — works even when nobody has the app open.</p>
+    <div id="notifBody"></div>
+    <div class="modal-actions">
+      <button class="secondary" onclick="closeNotify()">Cancel</button>
+      <button class="primary" onclick="saveNotify()">Save</button>
+    </div>
   </div>
 </div>
 
@@ -436,6 +455,7 @@ function enterApp(){
   document.getElementById('whoTxt').textContent = myName + ' · ' + myEmail;
   startListening();
   initRegimen();
+  initNotify();
 }
 
 async function bootGate(){
@@ -602,10 +622,18 @@ async function addEntry(partial){
   setSync('sync');
   try{
     await push(ref(db,'entries'), row);
+    writeHeartbeat(row);
     toast('Logged: ' + (partial.event_type || 'entry'));
   } catch(e){
     toast('⚠️ Save failed: ' + e.message); setSync('off');
   }
+}
+
+// Public-read heartbeats the notify cron uses (no health data — just timestamps).
+function writeHeartbeat(row){
+  const beat = { ts: row.timestamp, by: row.logged_by || '' };
+  set(ref(db,'meta/lastActivity'), beat).catch(()=>{});
+  if(row.event_type === 'dose') set(ref(db,'meta/lastDose'), row.timestamp).catch(()=>{});
 }
 
 /* ============ QUICK ACTIONS ============ */
@@ -998,6 +1026,68 @@ window.regResume = async (id)=>{ try{ await update(ref(db,'meta/regimen/'+id), {
 window.regDelete = async (id)=>{
   if(!confirm('Remove this medication from the list? Past dose entries are kept.')) return;
   try{ await remove(ref(db,'meta/regimen/'+id)); toast('Medication removed'); }catch(e){ alert(e.message); }
+};
+
+/* ============ NOTIFICATIONS CONFIG ============ */
+let notifyCfg = null;
+const NOTIFY_DEFAULTS = {
+  enabled:false, medChatId:'', alertChatId:'',
+  medTimes:['08:00','14:00','20:00'],
+  medMessage:"💊 Reminder: time for mum's meds (if not already taken).",
+  inactivityHours:8, quietStart:22, quietEnd:7
+};
+function initNotify(){
+  onValue(ref(db,'meta/notify'), (snap)=>{
+    notifyCfg = Object.assign({}, NOTIFY_DEFAULTS, snap.val() || {});
+    if(!Array.isArray(notifyCfg.medTimes)) notifyCfg.medTimes = NOTIFY_DEFAULTS.medTimes.slice();
+    if(document.getElementById('notifModalBg').classList.contains('open')) renderNotifyForm();
+  });
+}
+window.openNotify = ()=>{ renderNotifyForm(); document.getElementById('notifModalBg').classList.add('open'); };
+window.closeNotify = ()=>{ document.getElementById('notifModalBg').classList.remove('open'); };
+
+function renderNotifyForm(){
+  const c = notifyCfg || NOTIFY_DEFAULTS;
+  const hr = n => Array.from({length:24},(_,i)=>`<option value="${i}" ${(+c[n])===i?'selected':''}>${String(i).padStart(2,'0')}:00</option>`).join('');
+  document.getElementById('notifBody').innerHTML = `<div class="reg-form" style="box-shadow:none;padding:0">
+    <label class="nf-check"><input type="checkbox" id="nf_enabled" ${c.enabled?'checked':''}/> Reminders &amp; alerts ON</label>
+
+    <label class="nf-lbl">Med reminder group — chat ID</label>
+    <input id="nf_medChat" placeholder="e.g. -1001234567890" value="${escAttr(c.medChatId)}" />
+
+    <label class="nf-lbl">Reminder times (24h, comma-separated)</label>
+    <input id="nf_medTimes" placeholder="08:00, 14:00, 20:00" value="${escAttr((c.medTimes||[]).join(', '))}" />
+
+    <label class="nf-lbl">Reminder message</label>
+    <input id="nf_medMsg" value="${escAttr(c.medMessage)}" />
+
+    <label class="nf-lbl">Alert family if no logging for (hours)</label>
+    <input id="nf_inact" type="number" min="1" max="72" value="${escAttr(c.inactivityHours)}" />
+
+    <label class="nf-lbl">No-logging alert group — chat ID <span style="color:var(--muted)">(blank = same as above)</span></label>
+    <input id="nf_alertChat" placeholder="(optional)" value="${escAttr(c.alertChatId)}" />
+
+    <label class="nf-lbl">Quiet hours (no notifications)</label>
+    <div class="row"><div><select id="nf_qStart">${hr('quietStart')}</select></div><div><select id="nf_qEnd">${hr('quietEnd')}</select></div></div>
+    <p class="hint" style="margin:6px 0 0">From the first time until the second (overnight is fine, e.g. 22:00 → 07:00).</p>
+  </div>`;
+}
+window.saveNotify = async ()=>{
+  const times = val('nf_medTimes').split(',').map(s=>s.trim())
+    .filter(s=>/^\d{1,2}:\d{2}$/.test(s))
+    .map(s=>{ const [h,m]=s.split(':'); return String(+h).padStart(2,'0')+':'+m; });
+  const cfg = {
+    enabled: document.getElementById('nf_enabled').checked,
+    medChatId: val('nf_medChat').trim(),
+    alertChatId: val('nf_alertChat').trim(),
+    medTimes: times,
+    medMessage: val('nf_medMsg').trim() || NOTIFY_DEFAULTS.medMessage,
+    inactivityHours: Math.max(1, Math.min(72, parseInt(val('nf_inact'))||8)),
+    quietStart: parseInt(val('nf_qStart'))||0,
+    quietEnd: parseInt(val('nf_qEnd'))||0
+  };
+  try{ await set(ref(db,'meta/notify'), cfg); toast('Reminder settings saved'); closeNotify(); }
+  catch(e){ alert('Save failed: ' + e.message); }
 };
 
 /* ============ EDIT EXISTING ENTRY ============ */

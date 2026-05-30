@@ -1,0 +1,42 @@
+name: Med reminders & inactivity alerts
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"   # every ~15 min (GitHub may delay under load)
+  workflow_dispatch:          # lets you run it manually from the Actions tab
+
+permissions:
+  contents: write             # to commit the de-dup state file back
+
+concurrency:
+  group: notify
+  cancel-in-progress: false
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Run reminder/alert check
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          DB_URL: https://mum-tracker-default-rtdb.europe-west1.firebasedatabase.app
+          TZ: Europe/London
+        run: python scripts/notify_check.py
+
+      - name: Persist de-dup state
+        run: |
+          if ! git diff --quiet -- scripts/notify-state.json; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add scripts/notify-state.json
+            git commit -m "chore(notify): update reminder state [skip ci]"
+            git push
+          else
+            echo "No state change."
+          fi
