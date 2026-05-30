@@ -756,6 +756,8 @@ function describe(r){
   if(t==='sleep') return `<b>😴 ${e(r.notes||'Sleep')}</b>`;
   return `<b>${e(t)}</b> ${e(r.notes||'')}`;
 }
+const MOOD_COLOR = {very_sad:'#dc2626',sad:'#ea580c',neutral:'#ca8a04',happy:'#65a30d',very_happy:'#16a34a'};
+function moodColor(m){ return MOOD_COLOR[m] || '#f0abfc'; }
 window.toggleShowAll = ()=>{ showAllEntries = !showAllEntries; render(); };
 
 function render(){
@@ -766,7 +768,8 @@ function render(){
     const shown = showAllEntries ? all : all.slice(0, ENTRY_CAP);
     let html = shown.map(r=>{
       const who = r.logged_by ? `· ${r.logged_by}` : '';
-      return `<div class="entry ${r.event_type}">
+      const moodStyle = r.event_type==='mood_check' ? ` style="border-left-color:${moodColor(r.mood)}"` : '';
+      return `<div class="entry ${r.event_type}"${moodStyle}>
         <div class="what" onclick="openEdit('${r.key}')" style="cursor:pointer"><div class="when">${r.timestamp} <span class="who">${who}</span></div>${describe(r)}</div>
         <button class="del" onclick="openEdit('${r.key}')" title="Edit">✎</button>
         <button class="del" onclick="delEntry('${r.key}')" title="Delete">✕</button>
@@ -911,7 +914,8 @@ function renderInsights(){
   const ticks = last24.map(r=>{
     const t = new Date(r.timestamp.replace(' ','T'));
     const pct = 100 - ((now - t) / (24*3600000)) * 100;
-    return `<div class="tick" style="left:${pct.toFixed(2)}%;background:${colorFor(r.event_type)}" title="${r.timestamp} ${r.event_type}"></div>`;
+    const col = r.event_type==='mood_check' ? moodColor(r.mood) : colorFor(r.event_type);
+    return `<div class="tick" style="left:${pct.toFixed(2)}%;background:${col}" title="${r.timestamp} ${r.event_type}"></div>`;
   }).join('');
   // hour markers every 6 hours
   const hourMarkers = [0,6,12,18,24].map(h=>{
