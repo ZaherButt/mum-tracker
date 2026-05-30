@@ -355,21 +355,17 @@ window.googleSignIn = async ()=>{
   btn.disabled = true;
   try {
     await setPersistence(auth, browserLocalPersistence);
-    // Use popup everywhere — iOS Safari redirect loops due to ITP blocking
-    // cross-origin auth storage between firebaseapp.com and github.io.
-    try {
-      await signInWithPopup(auth, provider);
-    } catch(popupErr){
-      // Popup blocked (rare) → fall back to redirect.
-      if(popupErr.code === 'auth/popup-blocked' || popupErr.code === 'auth/operation-not-supported-in-this-environment'){
-        await signInWithRedirect(auth, provider);
-      } else {
-        throw popupErr;
-      }
-    }
+    await signInWithPopup(auth, provider);
   } catch(e){
     btn.disabled = false;
-    gateErr('Sign-in failed: ' + (e.message || e.code || 'unknown'));
+    const code = e.code || '';
+    if(code === 'auth/popup-blocked' || code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request'){
+      // Don't fall back to redirect — on iOS Safari/iPad it causes a sign-in loop
+      // due to ITP blocking cross-origin auth state between firebaseapp.com and github.io.
+      gateErr('Popup was blocked. Tap the address bar → "Always Allow Pop-ups for this site", then tap Sign in again. (Incognito/Private mode usually blocks popups — try a normal tab.)');
+    } else {
+      gateErr('Sign-in failed: ' + (e.message || code || 'unknown'));
+    }
   }
 };
 
