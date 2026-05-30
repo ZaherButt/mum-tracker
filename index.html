@@ -972,9 +972,7 @@ async function ensureRegimenSeed(){
   const seed = [
     {name:'Diclofenac', dose:'100mg', route:'rectal', freq:'OD'},
     {name:'Gabapentin', dose:'300mg', route:'oral', freq:'TDS'},
-    {name:'Diazepam', dose:'2mg', route:'oral', freq:'TDS'},
-    {name:'Co-dydramol', dose:'15/500mg', route:'oral', freq:'PRN'},
-    {name:'Eye drops', dose:'Monoprost + Trusopt', route:'ocular', freq:'Nightly'}
+    {name:'Diazepam', dose:'2mg', route:'oral', freq:'TDS'}
   ];
   const obj = {};
   seed.forEach((d,i)=>{ obj['seed'+i] = {...d, active:true, order:i}; });
