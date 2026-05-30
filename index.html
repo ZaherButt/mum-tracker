@@ -751,7 +751,7 @@ window.saveModal = ()=>{
 function describe(r){
   const t = r.event_type;
   const e = v => escHtml(v==null?'':String(v));
-  if(t==='dose') return `<b>💊 ${e(r.drug_name)}</b> ${e(r.dose||'')} ${r.route?'<span class="pill">'+e(r.route)+'</span>':''}`;
+  if(t==='dose') return `<b>💊 ${e((r.drug_name||'').toUpperCase())}</b> ${e(r.dose||'')} ${r.route?'<span class="pill">'+e(r.route)+'</span>':''}`;
   if(t==='pain_check') return `<b>📊 Pain ${e(r.pain_score_0_10)}/10</b>`;
   if(t==='mood_check'){ const m={very_sad:'😢 Very sad',sad:'🙁 Sad',neutral:'😐 Neutral',happy:'🙂 Happy',very_happy:'😄 Very happy'}; return `<b>${m[r.mood]||('🙂 '+e(r.mood))}</b>`; }
   if(t==='faint') return `<b>🚨 FAINT</b> ${r.pain_score_0_10?'pain '+e(r.pain_score_0_10)+'/10':''} ${r.position?'· '+e(r.position):''}<br><small>${e(r.symptoms||'')} ${e(r.notes||'')}</small>`;
@@ -873,7 +873,7 @@ function renderInsights(){
         else if(ratio < 1.5){ cls='warn'; status='due'; }
         else { cls='bad'; status='overdue'; }
       } else if(freq === 'PRN'){ status='as needed'; }
-      return `<div class="dose-row"><span class="name">💊 ${escHtml(name)}${status?`<span class="status">${status}</span>`:''}</span><span class="ago ${cls}">${ago}</span></div>`;
+      return `<div class="dose-row"><span class="name">💊 ${escHtml(name.toUpperCase())}${status?`<span class="status">${status}</span>`:''}</span><span class="ago ${cls}">${ago}</span></div>`;
     }).join('');
   const dosesCard = drugRows ? `<div class="insight-card">
     <div class="ic-head"><div class="ic-title">⏱ Time since last dose</div></div>
@@ -894,7 +894,7 @@ function renderInsights(){
     const recentDoses = within2h.filter(r=>r.event_type==='dose');
     const recentPain = within2h.filter(r=>r.event_type==='pain_check' && r.pain_score_0_10);
     const recentMeal = within2h.find(r=>r.event_type==='meal');
-    const dosesTxt = recentDoses.length ? recentDoses.map(d=>`${d.drug_name} (${Math.round((ft-new Date(d.timestamp.replace(' ','T')))/60000)}m before)`).join(', ') : '—';
+    const dosesTxt = recentDoses.length ? recentDoses.map(d=>`${(d.drug_name||'').toUpperCase()} (${Math.round((ft-new Date(d.timestamp.replace(' ','T')))/60000)}m before)`).join(', ') : '—';
     const painTxt = recentPain.length ? `${recentPain[recentPain.length-1].pain_score_0_10}/10` : '—';
     const mealTxt = recentMeal ? `${Math.round((ft - new Date(recentMeal.timestamp.replace(' ','T')))/60000)}m before` : '—';
     faintCard = `<div class="insight-card" style="border-left:3px solid var(--bad)">
@@ -1003,7 +1003,7 @@ function renderDrugButtons(){
   const icon = d => d.route==='ocular' ? '👁' : '💊';
   const drugBtns = active.map(d=>{
     const sub = [d.dose, FREQ_LABEL[d.freq]||d.freq].filter(Boolean).join(' · ');
-    return `<button class="action" onclick="quickDose(${js(d.name)},${js(d.dose||'')},${js(d.route||'oral')})">${icon(d)} ${escHtml(d.name)}<small>${escHtml(sub)}</small></button>`;
+    return `<button class="action" onclick="quickDose(${js(d.name)},${js(d.dose||'')},${js(d.route||'oral')})">${icon(d)} ${escHtml((d.name||'').toUpperCase())}<small>${escHtml(sub)}</small></button>`;
   }).join('');
   grid.innerHTML = drugBtns
     + (IS_ADMIN ? `<button class="action" onclick="openModal('dose')">＋ Other drug…</button>` : '')
@@ -1019,7 +1019,7 @@ function regRow(d, stopped){
     ? `<button onclick="regResume('${d.id}')">Resume</button><button class="danger" onclick="regDelete('${d.id}')">Delete</button>`
     : `<button onclick="regEdit('${d.id}')">Edit</button><button onclick="regStop('${d.id}')">Stop</button>`;
   return `<div class="reg-row ${stopped?'stopped':''}">
-    <div class="reg-info"><b>${escHtml(d.name)}</b><small>${escHtml(sub)}</small></div>
+    <div class="reg-info"><b>${escHtml((d.name||'').toUpperCase())}</b><small>${escHtml(sub)}</small></div>
     <div class="reg-actions">${actions}</div>
   </div>`;
 }
