@@ -261,8 +261,10 @@
 
   <!-- LOG TAB -->
   <section id="tab-log" class="section active">
-    <button class="action faint" onclick="openModal('faint')">🚨 FAINT (blackout)</button>
-    <button class="action nearfaint" onclick="openModal('near_faint')">⚠️ Near-faint / dizzy</button>
+    <div id="faintAdminRow" style="display:none">
+      <button class="action faint" onclick="openModal('faint')">🚨 FAINT (blackout)</button>
+      <button class="action nearfaint" onclick="openModal('near_faint')">⚠️ Near-faint / dizzy</button>
+    </div>
 
     <h2>Pain check</h2>
     <div class="slider-row">
@@ -1355,10 +1357,12 @@ function toast(msg){
 
 bootGate();
 
-// Show admin-only Clear All button when ?admin=1 is in URL
+// Show admin-only controls when ?admin=1 is in URL
 if(new URLSearchParams(location.search).get('admin')==='1'){
   const b = document.getElementById('clearAllBtn');
   if(b) b.style.display = '';
+  const f = document.getElementById('faintAdminRow');
+  if(f) f.style.display = '';
 }
 </script>
 </body>
