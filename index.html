@@ -124,6 +124,21 @@
   .stat .v{font-size:22px;font-weight:700;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
   .stat .v small{font-size:11px;color:var(--muted);font-weight:400;margin-left:4px}
   .stat .v.good{color:var(--good)} .stat .v.warn{color:var(--warn)} .stat .v.bad{color:var(--bad)}
+  .range-seg{display:flex;background:rgba(42,36,56,.6);padding:5px;border-radius:999px;margin-bottom:18px;box-shadow:var(--shadow)}
+  .range-seg button{flex:1;background:none;border:0;color:var(--muted);padding:9px 4px;font-size:13px;
+    font-weight:600;border-radius:999px;cursor:pointer;font-family:inherit;transition:all .2s}
+  .range-seg button.active{color:var(--bg);background:var(--accent);box-shadow:0 2px 8px rgba(248,165,194,.4)}
+  .daytable{width:100%;border-collapse:collapse;margin-top:4px;font-size:13px}
+  .daytable th{color:var(--muted);font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.05em;
+    padding:8px 5px;border-bottom:1px solid var(--card2);text-align:right}
+  .daytable th:first-child{text-align:left}
+  .daytable td{padding:11px 5px;text-align:right;border-bottom:1px solid rgba(255,255,255,.05);
+    font-variant-numeric:tabular-nums}
+  .daytable td:first-child{text-align:left;color:var(--muted)}
+  .daytable td.bad{color:var(--bad);font-weight:700}
+  .daytable td.warn{color:var(--warn)}
+  .daytable tr:last-child td{border-bottom:0}
+  .daytable .dt-wrap{background:var(--card);border-radius:var(--radius);padding:6px 14px 10px;box-shadow:var(--shadow)}
   .toast{position:fixed;top:calc(70px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);
     background:var(--accent);color:#1a1625;padding:13px 24px;border-radius:999px;font-weight:600;z-index:200;
     box-shadow:0 8px 24px rgba(248,165,194,.4);display:none;max-width:90%;text-align:center;font-size:14px}
@@ -253,8 +268,15 @@
 
   <!-- STATS TAB -->
   <section id="tab-stats" class="section">
-    <h2>Today at a glance</h2>
+    <div class="range-seg" id="rangeSeg">
+      <button data-range="1" class="active">Today</button>
+      <button data-range="7">7 days</button>
+      <button data-range="30">30 days</button>
+      <button data-range="0">All</button>
+    </div>
+    <h2 id="statsHeading">Today at a glance</h2>
     <div id="statsBox"></div>
+    <div id="dayBreakdown"></div>
     <h2>Last faint / near-faint</h2>
     <div id="lastFaint" class="entries"></div>
   </section>
@@ -873,13 +895,32 @@ async function saveEdit(){
     toast('⚠️ Update failed: ' + e.message); setSync('off');
   }
 }
+let statRange = 1;   // days: 1=today, 7, 30, 0=all
+function rangeLabel(){
+  return statRange===1 ? 'Today at a glance'
+    : statRange===0 ? 'All time'
+    : `Last ${statRange} days`;
+}
+function inStatRange(ts){
+  if(!ts) return false;
+  if(statRange===1) return ts.startsWith(todayLocal());
+  if(statRange===0) return true;
+  const d = new Date(ts.replace(' ','T'));
+  if(isNaN(d)) return false;
+  const start = new Date(); start.setHours(0,0,0,0); start.setDate(start.getDate()-(statRange-1));
+  return d >= start;
+}
 function todayLocal(){
   const d=new Date(); const p=n=>String(n).padStart(2,'0');
   return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
 }
 function renderStats(){
-  const today = todayLocal();
-  const t = entries.filter(r=>(r.timestamp||'').startsWith(today));
+  const t = entries.filter(r=>inStatRange(r.timestamp));
+  // distinct days actually covered (for averages)
+  const dayset = new Set(t.map(r=>(r.timestamp||'').slice(0,10)).filter(Boolean));
+  const nDays = statRange===1 ? 1 : statRange===0 ? Math.max(1, dayset.size) : statRange;
+  const multi = statRange!==1;
+
   const water = t.filter(r=>r.event_type==='water').reduce((s,r)=>s+(+r.water_ml||0),0);
   const doses = t.filter(r=>r.event_type==='dose').length;
   const meals = t.filter(r=>r.event_type==='meal').length;
@@ -889,19 +930,64 @@ function renderStats(){
   const faints = t.filter(r=>r.event_type==='faint'||r.event_type==='near_faint').length;
   const lastBM = [...entries].reverse().find(r=>r.event_type==='bowel_movement' && r.bowel_movement && r.bowel_movement.startsWith('yes'));
   const hrsSinceBM = lastBM ? Math.round((new Date() - new Date(lastBM.timestamp.replace(' ','T')))/3600000) : null;
-  const waterClass = water>=1500?'good':water>=1000?'warn':'bad';
+
+  // Water coloring: per-day target when multi-day, else today's running total
+  const avgWater = Math.round(water/nDays);
+  const waterRef = multi ? avgWater : water;
+  const waterClass = waterRef>=1500?'good':waterRef>=1000?'warn':'bad';
   const bmClass = hrsSinceBM===null?'warn':hrsSinceBM<48?'good':'bad';
+  const perDay = v => multi ? ` <small>· ${v}/day</small>` : '';
+
+  document.getElementById('statsHeading').textContent = rangeLabel();
   document.getElementById('statsBox').innerHTML = `
-    <div class="stat"><span class="label">💧 Water today</span><span class="v ${waterClass}">${water} ml <small style="font-size:11px;color:var(--muted)">/ 1500–2000</small></span></div>
-    <div class="stat"><span class="label">💊 Doses logged</span><span class="v">${doses}</span></div>
-    <div class="stat"><span class="label">🍽️ Meals</span><span class="v">${meals}</span></div>
-    <div class="stat"><span class="label">📊 Avg pain today</span><span class="v">${avgPain}<small style="font-size:11px;color:var(--muted)"> / max ${maxPain}</small></span></div>
-    <div class="stat"><span class="label">🚨 Faints / near-faints</span><span class="v ${faints?'bad':'good'}">${faints}</span></div>
+    <div class="stat"><span class="label">💧 Water${multi?' total':' today'}</span><span class="v ${waterClass}">${water} ml${multi?` <small>· ~${avgWater}/day</small>`:` <small style="font-size:11px;color:var(--muted)">/ 1500–2000</small>`}</span></div>
+    <div class="stat"><span class="label">💊 Doses</span><span class="v">${doses}${perDay((doses/nDays).toFixed(1))}</span></div>
+    <div class="stat"><span class="label">🍽️ Meals</span><span class="v">${meals}${perDay((meals/nDays).toFixed(1))}</span></div>
+    <div class="stat"><span class="label">📊 Avg pain</span><span class="v">${avgPain}<small style="font-size:11px;color:var(--muted)"> / max ${maxPain}</small></span></div>
+    <div class="stat"><span class="label">🚨 Faints / near-faints</span><span class="v ${faints?'bad':'good'}">${faints}${multi&&faints?perDay((faints/nDays).toFixed(2)):''}</span></div>
     <div class="stat"><span class="label">🚽 Last bowel movement</span><span class="v ${bmClass}">${hrsSinceBM===null?'none logged':hrsSinceBM+' h ago'}</span></div>`;
+
+  renderDayBreakdown(t, multi);
+
   const lastF = [...entries].reverse().find(r=>r.event_type==='faint'||r.event_type==='near_faint');
   document.getElementById('lastFaint').innerHTML = lastF ?
     `<div class="entry ${lastF.event_type}"><div class="what"><div class="when">${lastF.timestamp}</div>${describe(lastF)}</div></div>` :
     '<div class="empty">No faints logged 🎉</div>';
+}
+
+function renderDayBreakdown(t, multi){
+  const box = document.getElementById('dayBreakdown');
+  if(!multi){ box.innerHTML=''; return; }
+  // group by local date
+  const byDay = {};
+  t.forEach(r=>{
+    const d = (r.timestamp||'').slice(0,10); if(!d) return;
+    (byDay[d] = byDay[d] || []).push(r);
+  });
+  const days = Object.keys(byDay).sort().reverse().slice(0, statRange===0?60:statRange);
+  if(!days.length){ box.innerHTML=''; return; }
+  const rows = days.map(d=>{
+    const rs = byDay[d];
+    const pains = rs.filter(r=>r.event_type==='pain_check').map(r=>+r.pain_score_0_10).filter(n=>!isNaN(n));
+    const avgP = pains.length ? (pains.reduce((a,b)=>a+b,0)/pains.length).toFixed(1) : '·';
+    const maxP = pains.length ? Math.max(...pains) : null;
+    const water = rs.filter(r=>r.event_type==='water').reduce((s,r)=>s+(+r.water_ml||0),0);
+    const doses = rs.filter(r=>r.event_type==='dose').length;
+    const fa = rs.filter(r=>r.event_type==='faint'||r.event_type==='near_faint').length;
+    const dt = new Date(d+'T00:00');
+    const lbl = dt.toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short'});
+    const waterCls = water>=1500?'':water>=1000?'warn':'bad';
+    return `<tr>
+      <td>${lbl}</td>
+      <td class="${fa?'bad':''}">${fa||'·'}</td>
+      <td>${avgP}${maxP!=null?`<small style="color:var(--muted)"> /${maxP}</small>`:''}</td>
+      <td class="${waterCls}">${water||'·'}</td>
+      <td>${doses||'·'}</td>
+    </tr>`;
+  }).join('');
+  box.innerHTML = `<div class="dt-wrap"><table class="daytable">
+    <thead><tr><th>Day</th><th>Faint</th><th>Pain</th><th>Water</th><th>Dose</th></tr></thead>
+    <tbody>${rows}</tbody></table></div>`;
 }
 
 /* ============ CSV ============ */
@@ -939,6 +1025,14 @@ document.querySelectorAll('nav button').forEach(b=>{
     document.querySelectorAll('.section').forEach(x=>x.classList.remove('active'));
     b.classList.add('active');
     document.getElementById('tab-'+b.dataset.tab).classList.add('active');
+  };
+});
+document.querySelectorAll('#rangeSeg button').forEach(b=>{
+  b.onclick = ()=>{
+    document.querySelectorAll('#rangeSeg button').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    statRange = +b.dataset.range;
+    renderStats();
   };
 });
 let toastTimer;
