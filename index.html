@@ -388,6 +388,8 @@ let appStarted = false;        // guard against double-init from onAuthStateChan
 let regimen = [];              // [{id,name,dose,route,freq,active,order}]
 let regEditId = null;          // null | id | 'new'  — inline edit state in manager
 let regOpen = false;
+const ENTRY_CAP = 100;         // View tab shows latest N; "Show all" reveals the rest
+let showAllEntries = false;
 const FREQ_HOURS = {OD:24, BD:12, TDS:8, QDS:6, Nightly:24, PRN:null};
 const FREQ_LABEL = {OD:'Once daily', BD:'Twice daily', TDS:'3×/day', QDS:'4×/day', Nightly:'Nightly', PRN:'As needed'};
 
@@ -702,11 +704,15 @@ function describe(r){
   if(t==='sleep') return `<b>😴 ${e(r.notes||'Sleep')}</b>`;
   return `<b>${e(t)}</b> ${e(r.notes||'')}`;
 }
+window.toggleShowAll = ()=>{ showAllEntries = !showAllEntries; render(); };
+
 function render(){
   const list = document.getElementById('entriesList');
   if(!entries.length){ list.innerHTML = '<div class="empty">No entries yet. Start logging in the Log tab.</div>'; }
   else {
-    list.innerHTML = entries.slice().reverse().map(r=>{
+    const all = entries.slice().reverse();
+    const shown = showAllEntries ? all : all.slice(0, ENTRY_CAP);
+    let html = shown.map(r=>{
       const who = r.logged_by ? `· ${r.logged_by}` : '';
       return `<div class="entry ${r.event_type}">
         <div class="what" onclick="openEdit('${r.key}')" style="cursor:pointer"><div class="when">${r.timestamp} <span class="who">${who}</span></div>${describe(r)}</div>
@@ -714,6 +720,12 @@ function render(){
         <button class="del" onclick="delEntry('${r.key}')" title="Delete">✕</button>
       </div>`;
     }).join('');
+    if(all.length > ENTRY_CAP){
+      html += showAllEntries
+        ? `<button class="action" style="width:100%;margin-top:8px" onclick="toggleShowAll()">Show recent ${ENTRY_CAP} only</button>`
+        : `<button class="action" style="width:100%;margin-top:8px" onclick="toggleShowAll()">Show all ${all.length} entries (showing latest ${ENTRY_CAP})</button>`;
+    }
+    list.innerHTML = html;
   }
   renderStats();
   renderInsights();
