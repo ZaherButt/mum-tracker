@@ -475,17 +475,19 @@ function flashTitle(msg){
     on = !on;
   }, 1000);
   // Stop flashing when tab regains focus
+  const onVis = ()=>{ if(!document.hidden) stop(); };
   const stop = ()=>{ clearInterval(titleFlashTimer); document.title = originalTitle;
-    window.removeEventListener('focus', stop); document.removeEventListener('visibilitychange', stop); };
+    window.removeEventListener('focus', stop); document.removeEventListener('visibilitychange', onVis); };
   window.addEventListener('focus', stop);
-  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) stop(); });
+  document.addEventListener('visibilitychange', onVis);
 }
 
 function handleNewEntry(r){
   // Always chime + flash title when a NEW entry shows up from any source (so you know data arrived).
   // Suppress if I logged it on this same device in the last few seconds (avoids self-chime).
   const isMine = r.logged_by === myName;
-  const ageMs = Date.now() - new Date(r.timestamp.replace(' ','T')).getTime();
+  const tsMs = r.timestamp ? new Date(r.timestamp.replace(' ','T')).getTime() : Date.now();
+  const ageMs = Date.now() - (isNaN(tsMs) ? Date.now() : tsMs);
   if(!isMine || ageMs > 60000){
     chime();
     if(document.hidden){
@@ -570,7 +572,7 @@ window.openModal = (mode)=>{
   modalMode = mode;
   const titles = {
     faint:'🚨 Faint — blackout', near_faint:'⚠️ Near-faint / dizzy',
-    dose:'💊 Other medication', bowel_movement:'🚽 Bowel movement', vitals:'❤️ BP / HR reading'
+    dose:'💊 Other medication', bowel_movement:'🚽 Bowel movement'
   };
   document.getElementById('modalTitle').textContent = titles[mode]||'Log event';
   let html = '';
@@ -603,15 +605,6 @@ window.openModal = (mode)=>{
         <option value="yes_strained">With straining (vasovagal risk)</option>
         <option value="no">Tried but no result</option></select>
       <label>Notes</label><textarea id="m_notes"></textarea>`;
-  } else if(mode==='vitals'){
-    html = `<label>Time</label><input type="datetime-local" id="m_time" />
-      <label>Position when measured</label>
-      <select id="m_pos"><option>flat</option><option>reclined</option>
-        <option>sitting_upright</option><option>standing</option></select>
-      <div class="row"><div><label>BP systolic</label><input type="number" id="m_bps" /></div>
-        <div><label>BP diastolic</label><input type="number" id="m_bpd" /></div></div>
-      <label>Heart rate</label><input type="number" id="m_hr" />
-      <label>Notes</label><textarea id="m_notes"></textarea>`;
   }
   document.getElementById('modalBody').innerHTML = html;
   document.getElementById('modalBg').classList.add('open');
@@ -639,10 +632,6 @@ window.saveModal = ()=>{
   } else if(m==='dose'){
     entry.drug_name = val('m_drug'); entry.dose = val('m_dose'); entry.route = val('m_route');
   } else if(m==='bowel_movement'){ entry.bowel_movement = val('m_bm'); }
-  else if(m==='vitals'){
-    entry.position = val('m_pos'); entry.bp_systolic = val('m_bps');
-    entry.bp_diastolic = val('m_bpd'); entry.heart_rate = val('m_hr');
-  }
   addEntry(entry);
   closeModal();
 };
@@ -650,17 +639,17 @@ window.saveModal = ()=>{
 /* ============ RENDER ============ */
 function describe(r){
   const t = r.event_type;
-  if(t==='dose') return `<b>💊 ${r.drug_name}</b> ${r.dose||''} ${r.route?'<span class="pill">'+r.route+'</span>':''}`;
-  if(t==='pain_check') return `<b>📊 Pain ${r.pain_score_0_10}/10</b>`;
-  if(t==='faint') return `<b>🚨 FAINT</b> ${r.pain_score_0_10?'pain '+r.pain_score_0_10+'/10':''} ${r.position?'· '+r.position:''}<br><small>${r.symptoms||''} ${r.notes||''}</small>`;
-  if(t==='near_faint') return `<b>⚠️ Near-faint</b> ${r.pain_score_0_10?'pain '+r.pain_score_0_10+'/10':''} ${r.position?'· '+r.position:''}<br><small>${r.symptoms||''} ${r.notes||''}</small>`;
-  if(t==='meal') return `<b>🍽️ Meal</b> ${r.notes||''}`;
-  if(t==='water') return `<b>💧 Water +${r.water_ml}ml</b>`;
-  if(t==='position_change') return `<b>🔄 Position:</b> ${r.position}`;
-  if(t==='bowel_movement') return `<b>🚽 BM:</b> ${r.bowel_movement} ${r.notes||''}`;
-  if(t==='vitals') return `<b>❤️ BP ${r.bp_systolic}/${r.bp_diastolic} · HR ${r.heart_rate}</b> ${r.position?'('+r.position+')':''}`;
-  if(t==='sleep') return `<b>😴 ${r.notes||'Sleep'}</b>`;
-  return `<b>${t}</b> ${r.notes||''}`;
+  const e = v => escHtml(v==null?'':String(v));
+  if(t==='dose') return `<b>💊 ${e(r.drug_name)}</b> ${e(r.dose||'')} ${r.route?'<span class="pill">'+e(r.route)+'</span>':''}`;
+  if(t==='pain_check') return `<b>📊 Pain ${e(r.pain_score_0_10)}/10</b>`;
+  if(t==='faint') return `<b>🚨 FAINT</b> ${r.pain_score_0_10?'pain '+e(r.pain_score_0_10)+'/10':''} ${r.position?'· '+e(r.position):''}<br><small>${e(r.symptoms||'')} ${e(r.notes||'')}</small>`;
+  if(t==='near_faint') return `<b>⚠️ Near-faint</b> ${r.pain_score_0_10?'pain '+e(r.pain_score_0_10)+'/10':''} ${r.position?'· '+e(r.position):''}<br><small>${e(r.symptoms||'')} ${e(r.notes||'')}</small>`;
+  if(t==='meal') return `<b>🍽️ Meal</b> ${e(r.notes||'')}`;
+  if(t==='water') return `<b>💧 Water +${e(r.water_ml)}ml</b>`;
+  if(t==='position_change') return `<b>🔄 Position:</b> ${e(r.position)}`;
+  if(t==='bowel_movement') return `<b>🚽 BM:</b> ${e(r.bowel_movement)} ${e(r.notes||'')}`;
+  if(t==='sleep') return `<b>😴 ${e(r.notes||'Sleep')}</b>`;
+  return `<b>${e(t)}</b> ${e(r.notes||'')}`;
 }
 function render(){
   const list = document.getElementById('entriesList');
@@ -805,7 +794,7 @@ function renderInsights(){
     <div class="ic-head"><div class="ic-title">🕒 Last 24 hours · ${last24.length} events</div></div>
     <div class="timeline-strip">${ticks}${hourMarkers}</div>
     <div class="timeline-legend">
-      <span style="color:var(--accent)"><i style="background:var(--accent)"></i></span>Pain
+      <span><i style="background:var(--accent)"></i>Pain</span>
       <span><i style="background:var(--accent2)"></i>Dose</span>
       <span><i style="background:var(--good)"></i>Meal</span>
       <span><i style="background:#7dd3fc"></i>Water</span>
@@ -884,8 +873,12 @@ async function saveEdit(){
     toast('⚠️ Update failed: ' + e.message); setSync('off');
   }
 }
+function todayLocal(){
+  const d=new Date(); const p=n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
+}
 function renderStats(){
-  const today = new Date().toISOString().slice(0,10);
+  const today = todayLocal();
   const t = entries.filter(r=>(r.timestamp||'').startsWith(today));
   const water = t.filter(r=>r.event_type==='water').reduce((s,r)=>s+(+r.water_ml||0),0);
   const doses = t.filter(r=>r.event_type==='dose').length;
