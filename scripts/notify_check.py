@@ -17,6 +17,7 @@ import os
 import sys
 import urllib.request
 import urllib.parse
+import urllib.error
 from datetime import datetime, timedelta
 
 STATE_PATH = os.path.join(os.path.dirname(__file__), "notify-state.json")
@@ -78,21 +79,39 @@ def in_quiet(now, start, end):
 def send_telegram(chat_id, text):
     if not chat_id:
         return False
-    data = urllib.parse.urlencode({
-        "chat_id": str(chat_id),
-        "text": text,
-        "disable_web_page_preview": "true",
-    }).encode()
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-    try:
-        with urllib.request.urlopen(urllib.request.Request(url, data=data), timeout=20) as r:
-            ok = json.loads(r.read().decode()).get("ok", False)
-            if not ok:
-                print(f"Telegram not ok for {chat_id}", file=sys.stderr)
-            return ok
-    except Exception as e:
-        print(f"Telegram send failed for {chat_id}: {e}", file=sys.stderr)
-        return False
+
+    def _post(cid):
+        data = urllib.parse.urlencode({
+            "chat_id": str(cid),
+            "text": text,
+            "disable_web_page_preview": "true",
+        }).encode()
+        req = urllib.request.Request(url, data=data)
+        try:
+            with urllib.request.urlopen(req, timeout=20) as r:
+                return json.loads(r.read().decode())
+        except urllib.error.HTTPError as e:
+            try:
+                return json.loads(e.read().decode())
+            except Exception:
+                return {"ok": False, "description": f"HTTP {e.code}"}
+        except Exception as e:
+            return {"ok": False, "description": str(e)}
+
+    res = _post(chat_id)
+    if res.get("ok"):
+        return True
+    # Auto-follow a group->supergroup migration (chat ID changes once).
+    new_id = (res.get("parameters") or {}).get("migrate_to_chat_id")
+    if new_id:
+        print(f"Chat {chat_id} migrated -> {new_id}; retrying. "
+              f"Update the chat ID in the app to {new_id}.", file=sys.stderr)
+        res = _post(new_id)
+        if res.get("ok"):
+            return True
+    print(f"Telegram send failed for {chat_id}: {res.get('description')}", file=sys.stderr)
+    return False
 
 
 def main():
