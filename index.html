@@ -404,6 +404,9 @@ const db = getDatabase(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
+// Admin mode (?admin=1) reveals advanced/complex controls hidden from mum's normal view.
+const IS_ADMIN = new URLSearchParams(location.search).get('admin')==='1';
+
 // Allowlisted family Google accounts. Add more here AND in Firebase rules.
 const ALLOWED_EMAILS = new Set([
   'zaher.butt@gmail.com',
@@ -994,15 +997,17 @@ function listenRegimen(){
 function renderDrugButtons(){
   const grid = document.getElementById('drugGrid');
   if(!grid) return;
-  const active = regimen.filter(d=>d.active!==false);
+  let active = regimen.filter(d=>d.active!==false);
+  // Eye drops (ocular) are admin-only — too fiddly for mum's normal view.
+  if(!IS_ADMIN) active = active.filter(d=>d.route!=='ocular');
   const icon = d => d.route==='ocular' ? '👁' : '💊';
   const drugBtns = active.map(d=>{
     const sub = [d.dose, FREQ_LABEL[d.freq]||d.freq].filter(Boolean).join(' · ');
     return `<button class="action" onclick="quickDose(${js(d.name)},${js(d.dose||'')},${js(d.route||'oral')})">${icon(d)} ${escHtml(d.name)}<small>${escHtml(sub)}</small></button>`;
   }).join('');
   grid.innerHTML = drugBtns
-    + `<button class="action" onclick="openModal('dose')">＋ Other drug…</button>`
-    + `<button class="action" onclick="openRegimen()" style="opacity:.85">⚙️ Manage meds…</button>`;
+    + (IS_ADMIN ? `<button class="action" onclick="openModal('dose')">＋ Other drug…</button>` : '')
+    + (IS_ADMIN ? `<button class="action" onclick="openRegimen()" style="opacity:.85">⚙️ Manage meds…</button>` : '');
 }
 
 window.openRegimen = ()=>{ regOpen=true; regEditId=null; renderRegimenManager(); document.getElementById('regModalBg').classList.add('open'); };
@@ -1358,7 +1363,7 @@ function toast(msg){
 bootGate();
 
 // Show admin-only controls when ?admin=1 is in URL
-if(new URLSearchParams(location.search).get('admin')==='1'){
+if(IS_ADMIN){
   const b = document.getElementById('clearAllBtn');
   if(b) b.style.display = '';
   const f = document.getElementById('faintAdminRow');
