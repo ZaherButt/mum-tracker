@@ -207,6 +207,9 @@
   .timeline-legend{display:flex;flex-wrap:wrap;gap:8px 14px;font-size:11px;color:var(--muted);margin-top:22px}
   .timeline-legend span{display:inline-flex;align-items:center;gap:4px}
   .timeline-legend i{display:inline-block;width:8px;height:8px;border-radius:2px}
+  .mood-latest{font-size:15px;margin:6px 0 10px}
+  .mood-dots{display:flex;flex-wrap:wrap;gap:8px}
+  .mood-dot{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;font-size:18px;box-shadow:0 0 0 2px rgba(255,255,255,.15)}
   /* Sign-in gate */
   .gate{position:fixed;inset:0;background:var(--bg);
     background-image:radial-gradient(ellipse at top,#2a2240 0%,#1a1625 60%);
@@ -936,7 +939,26 @@ function renderInsights(){
     </div>
   </div>` : '';
 
-  box.innerHTML = faintCard + painCard + timelineCard + dosesCard;
+  // 5) Mood today
+  const todayStr = new Date().toISOString().slice(0,10);
+  const moodEmoji = {very_sad:'😢',sad:'🙁',neutral:'😐',happy:'🙂',very_happy:'😄'};
+  const moodLabel = {very_sad:'Very sad',sad:'Sad',neutral:'Neutral',happy:'Happy',very_happy:'Very happy'};
+  const moodsToday = entries.filter(r=>r.event_type==='mood_check' && (r.timestamp||'').slice(0,10)===todayStr);
+  let moodCard = '';
+  if(moodsToday.length){
+    const latest = moodsToday[moodsToday.length-1];
+    const dots = moodsToday.map(r=>{
+      const tm = (r.timestamp||'').slice(11,16);
+      return `<span class="mood-dot" style="background:${moodColor(r.mood)}" title="${tm} ${moodLabel[r.mood]||r.mood}">${moodEmoji[r.mood]||'🙂'}</span>`;
+    }).join('');
+    moodCard = `<div class="insight-card">
+      <div class="ic-head"><div class="ic-title">😊 Mood today · ${moodsToday.length} check${moodsToday.length>1?'s':''}</div></div>
+      <div class="mood-latest">Latest: <b style="color:${moodColor(latest.mood)}">${moodEmoji[latest.mood]||'🙂'} ${moodLabel[latest.mood]||latest.mood}</b> <span class="muted">at ${(latest.timestamp||'').slice(11,16)}</span></div>
+      <div class="mood-dots">${dots}</div>
+    </div>`;
+  }
+
+  box.innerHTML = faintCard + painCard + moodCard + timelineCard + dosesCard;
 }
 /* ============ MEDICATION REGIMEN ============ */
 function js(s){ return "'" + String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'") + "'"; }
