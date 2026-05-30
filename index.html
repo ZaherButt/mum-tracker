@@ -56,6 +56,11 @@
     box-shadow:var(--shadow)}
   button.action:active{transform:scale(.96);background:var(--card2)}
   button.action small{display:block;color:var(--muted);font-weight:400;font-size:11.5px;margin-top:4px;letter-spacing:.01em}
+  button.action.drugbtn{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:6px;padding:14px 10px}
+  .drugbtn .pill-ico{width:48px;height:48px;display:flex;align-items:center;justify-content:center;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))}
+  .drugbtn .pill-ico svg{width:48px;height:48px}
+  .drugbtn .pill-ico .emoji-ico{font-size:36px;line-height:1}
+  .drugbtn small{margin-top:0}
   button.action.faint{background:linear-gradient(135deg,#fb7185,#e11d48);border:0;grid-column:1/-1;text-align:center;
     font-size:17px;padding:22px;box-shadow:0 8px 24px rgba(225,29,72,.35);letter-spacing:.02em}
   button.action.faint:active{background:linear-gradient(135deg,#e11d48,#be123c)}
@@ -994,16 +999,32 @@ function listenRegimen(){
   });
 }
 
+// Realistic pill icons matched to each medication's actual appearance.
+const PILL_SVGS = {
+  // Diclofenac — white bullet-shaped suppository (pointed top, rounded base)
+  bullet: `<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 4 C16 16 15 22 15 30 a9 11 0 0 0 18 0 C33 22 32 16 24 4 Z" fill="#fdfdfd" stroke="#aab2bf" stroke-width="2"/><ellipse cx="20" cy="20" rx="2.4" ry="5.5" fill="#ffffff" opacity=".75"/></svg>`,
+  // Diazepam — yellow two-tone capsule (tilted)
+  capsuleYellow: `<svg viewBox="0 0 48 48" aria-hidden="true"><g transform="rotate(-40 24 24)"><rect x="8" y="17" width="32" height="14" rx="7" fill="#fde047" stroke="#c79a05" stroke-width="2"/><path d="M24 17 v14" stroke="#c79a05" stroke-width="1.5" opacity=".55"/><rect x="10" y="19" width="6" height="3" rx="1.5" fill="#ffffff" opacity=".6"/></g></svg>`,
+  // Gabapentin — white round scored tablet
+  tabletWhite: `<svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="16" fill="#fdfdfd" stroke="#aab2bf" stroke-width="2"/><line x1="24" y1="9" x2="24" y2="39" stroke="#aab2bf" stroke-width="2"/><ellipse cx="18" cy="18" rx="3.2" ry="2" fill="#ffffff" opacity=".75"/></svg>`
+};
+function pillIcon(d){
+  const n = (d.name||'').toLowerCase();
+  if(n.includes('diclofenac')) return PILL_SVGS.bullet;
+  if(n.includes('diazepam'))   return PILL_SVGS.capsuleYellow;
+  if(n.includes('gabapentin')) return PILL_SVGS.tabletWhite;
+  if(d.route==='ocular') return '<span class="emoji-ico">👁</span>';
+  return '<span class="emoji-ico">💊</span>';
+}
 function renderDrugButtons(){
   const grid = document.getElementById('drugGrid');
   if(!grid) return;
   let active = regimen.filter(d=>d.active!==false);
   // Eye drops (ocular) are admin-only — too fiddly for mum's normal view.
   if(!IS_ADMIN) active = active.filter(d=>d.route!=='ocular');
-  const icon = d => d.route==='ocular' ? '👁' : '💊';
   const drugBtns = active.map(d=>{
     const sub = [d.dose, FREQ_LABEL[d.freq]||d.freq].filter(Boolean).join(' · ');
-    return `<button class="action" onclick="quickDose(${js(d.name)},${js(d.dose||'')},${js(d.route||'oral')})">${icon(d)} ${escHtml((d.name||'').toUpperCase())}<small>${escHtml(sub)}</small></button>`;
+    return `<button class="action drugbtn" onclick="quickDose(${js(d.name)},${js(d.dose||'')},${js(d.route||'oral')})"><span class="pill-ico">${pillIcon(d)}</span><span class="drugname">${escHtml((d.name||'').toUpperCase())}</span><small>${escHtml(sub)}</small></button>`;
   }).join('');
   grid.innerHTML = drugBtns
     + (IS_ADMIN ? `<button class="action" onclick="openModal('dose')">＋ Other drug…</button>` : '')
