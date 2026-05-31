@@ -100,6 +100,17 @@
   .entry.pain_check{border-left-color:var(--accent)}
   .entry.mood_check{border-left-color:#f0abfc}
   .mood-strip{display:flex;gap:6px}
+  .pain-strip{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}
+  .pain-chip{flex:1 1 calc(16.66% - 6px);min-width:46px;border:0;border-radius:14px;padding:14px 0;
+    font-size:22px;font-weight:800;color:#fff;cursor:pointer;font-family:inherit;box-shadow:var(--shadow);
+    text-shadow:0 1px 2px rgba(0,0,0,.4);transition:transform .08s,filter .15s}
+  .pain-chip:active{transform:scale(.88);filter:brightness(1.15)}
+  .pain-chip small{display:block;font-size:9px;font-weight:700;opacity:.95;margin-top:2px;letter-spacing:.02em}
+  .pain-cap{font-size:11px;color:var(--muted);text-align:center;margin-top:8px}
+  .nudge-row{display:flex;gap:6px;margin:6px 0 4px;flex-wrap:wrap}
+  .nudge-row button{flex:1;min-width:56px;background:var(--card2);color:var(--txt);border:0;border-radius:10px;
+    padding:9px 4px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit}
+  .nudge-row button:active{transform:scale(.94);background:var(--accent);color:var(--bg)}
   .mood-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
     background:var(--card);border:2px solid transparent;border-radius:var(--radius-sm);padding:14px 2px;
     cursor:pointer;font-family:inherit;box-shadow:var(--shadow);transition:transform .05s,filter .15s}
@@ -272,12 +283,8 @@
     </div>
 
     <h2>Pain check</h2>
-    <div class="slider-row">
-      <label>Pain right now <span class="val" id="painVal">5</span></label>
-      <input type="range" min="0" max="10" value="5" id="painSlider" oninput="document.getElementById('painVal').textContent=this.value" />
-      <div class="scale"><span>0 none</span><span>5</span><span>10 worst</span></div>
-      <button class="primary" onclick="logPain()">Log pain</button>
-    </div>
+    <div class="pain-strip" id="painStrip"></div>
+    <div class="pain-cap">Tap the pain level · 0 = none · 10 = worst ever</div>
 
     <h2>Mood check</h2>
     <div class="mood-strip">
@@ -490,6 +497,7 @@ function enterApp(){
   startListening();
   initRegimen();
   initNotify();
+  renderPainChips();
 }
 
 async function bootGate(){
@@ -677,10 +685,19 @@ window.quickWater = (ml)=>addEntry({event_type:'water',water_ml:ml});
 window.quickPosition = (pos)=>addEntry({event_type:'position_change',position:pos});
 window.quickMood = (m)=>addEntry({event_type:'mood_check',mood:m});
 window.quickEvent = (t,note)=>addEntry({event_type:t,notes:note});
-window.logPain = ()=>{
-  const v = document.getElementById('painSlider').value;
-  addEntry({event_type:'pain_check', pain_score_0_10:v});
-};
+window.quickPain = (v)=>addEntry({event_type:'pain_check', pain_score_0_10:String(v)});
+// Colour-graded one-tap pain chips (green 0 → red 10).
+function renderPainChips(){
+  const el = document.getElementById('painStrip');
+  if(!el) return;
+  let h = '';
+  for(let v=0; v<=10; v++){
+    const hue = Math.round(120*(1 - v/10));
+    const cap = v===0?'none':v===10?'worst':'';
+    h += `<button class="pain-chip" style="background:hsl(${hue},66%,42%)" onclick="quickPain(${v})">${v}${cap?`<small>${cap}</small>`:''}</button>`;
+  }
+  el.innerHTML = h;
+}
 
 /* ============ MODAL ============ */
 let modalMode = null;
@@ -1175,7 +1192,15 @@ window.openEdit = (key)=>{
   document.getElementById('modalTitle').textContent = '✎ Edit ' + t.replace(/_/g,' ');
   // datetime-local needs "YYYY-MM-DDTHH:MM"
   const dt = (r.timestamp||'').replace(' ','T').slice(0,16);
-  let html = `<label>Time</label><input type="datetime-local" id="m_time" value="${dt}" />`;
+  let html = `<label>Time</label><input type="datetime-local" id="m_time" value="${dt}" />
+    <div class="nudge-row">
+      <button onclick="nudgeTime(-60)">−1h</button>
+      <button onclick="nudgeTime(-15)">−15m</button>
+      <button onclick="nudgeTime(-5)">−5m</button>
+      <button onclick="nudgeTime(5)">+5m</button>
+      <button onclick="nudgeTime(60)">+1h</button>
+      <button onclick="nudgeTime('now')">Now</button>
+    </div>`;
   if(t==='pain_check'){
     html += `<label>Pain (0–10)</label><input type="number" min="0" max="10" id="m_pain" value="${r.pain_score_0_10||''}" />`;
   } else if(t==='dose'){
@@ -1203,6 +1228,19 @@ window.openEdit = (key)=>{
   html += `<label>Notes</label><textarea id="m_notes">${escHtml(r.notes||'')}</textarea>`;
   document.getElementById('modalBody').innerHTML = html;
   document.getElementById('modalBg').classList.add('open');
+};
+// Quick time adjust for the edit dialog's datetime-local field.
+window.nudgeTime = (mins)=>{
+  const el = document.getElementById('m_time');
+  if(!el) return;
+  const p = n=>String(n).padStart(2,'0');
+  let d;
+  if(mins === 'now'){ d = new Date(); }
+  else {
+    const base = el.value ? new Date(el.value) : new Date();
+    d = new Date(base.getTime() + mins*60000);
+  }
+  el.value = `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
 };
 
 function escAttr(v){ return (v||'').toString().replace(/"/g,'&quot;'); }
